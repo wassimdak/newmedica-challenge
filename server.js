@@ -3,7 +3,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 
 require('./lib/db'); // creates schema
-const { seedIfEmpty } = require('./lib/seed');
+const { seedIfEmpty, syncAdminCredentials } = require('./lib/seed');
 
 const authRoutes = require('./routes/auth');
 const appRoutes = require('./routes/app');
@@ -30,6 +30,8 @@ app.use((req, res) => {
 
 seedIfEmpty()
   .catch((err) => console.error('Erreur lors de la génération du jeu de données de démonstration :', err))
+  .then(() => syncAdminCredentials())
+  .catch((err) => console.error('Erreur lors de la synchronisation des identifiants admin :', err))
   .finally(() => {
     app.listen(PORT, () => {
       console.log(`NewMedica Challenge en écoute sur http://localhost:${PORT}`);
