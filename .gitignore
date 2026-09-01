@@ -2,3 +2,7 @@ node_modules/
 newmedica.db
 .env
 *.log
+public/uploads/
+test-receipt.jpg
+.tesseract-cache/
+*.traineddata

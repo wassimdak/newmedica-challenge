@@ -1,7 +1,11 @@
 const express = require('express');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const { v4: uuid } = require('uuid');
 const { all, get, run } = require('../lib/dbHelpers');
 const { requireAppPage, requireAppApi } = require('../lib/auth');
+const { matchProduits, preprocessImage, reconnaitreTexte } = require('../lib/ocr');
 const {
   currentPeriod,
   previousYearPeriod,
@@ -12,6 +16,17 @@ const {
 } = require('../lib/calculations');
 
 const router = express.Router();
+
+const TICKETS_DIR = path.join(__dirname, '..', 'public', 'uploads', 'tickets');
+fs.mkdirSync(TICKETS_DIR, { recursive: true });
+const uploadTicket = multer({
+  storage: multer.diskStorage({
+    destination: TICKETS_DIR,
+    filename: (req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname) || '.jpg'}`),
+  }),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
+});
 
 async function loadPreparatrice(id) {
   return get(
@@ -194,6 +209,72 @@ router.get('/profil', requireAppPage, async (req, res) => {
 router.post('/api/notifications/:id/lu', requireAppApi, async (req, res) => {
   await run('UPDATE notifications SET lu = 1 WHERE id = ? AND preparatrice_id = ?', [req.params.id, req.preparatriceId]);
   res.json({ ok: true });
+});
+
+// --- Scan de ticket de caisse (photo -> OCR -> relecture -> ventes déclaratives en attente) ---
+
+router.get('/scanner', requireAppPage, async (req, res) => {
+  const preparatrice = await loadPreparatrice(req.preparatriceId);
+  const marques = await all('SELECT * FROM marques ORDER BY nom');
+  const tickets = await all(
+    'SELECT * FROM tickets WHERE preparatrice_id = ? ORDER BY created_at DESC LIMIT 10',
+    [preparatrice.id]
+  );
+  res.render('app/scanner', { active: 'accueil', preparatrice, marques, tickets });
+});
+
+router.post('/scanner/analyser', requireAppApi, uploadTicket.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Photo requise' });
+
+  const processedPath = req.file.path + '.processed.jpg';
+  try {
+    await preprocessImage(req.file.path, processedPath);
+    const ocrText = await reconnaitreTexte(processedPath);
+    const marques = await all('SELECT * FROM marques ORDER BY nom');
+    const suggestions = matchProduits(ocrText, marques);
+    res.json({
+      ok: true,
+      photo: `/uploads/tickets/${req.file.filename}`,
+      ocrText,
+      suggestions,
+    });
+  } catch (err) {
+    console.error('Erreur OCR ticket :', err);
+    res.status(500).json({ error: "La reconnaissance automatique a échoué. Vous pouvez ajouter les lignes manuellement." });
+  } finally {
+    fs.unlink(processedPath, () => {});
+  }
+});
+
+router.post('/scanner/confirmer', requireAppApi, async (req, res) => {
+  const { photo, ocrText, lignes } = req.body;
+  if (!photo || !photo.startsWith('/uploads/tickets/') || !fs.existsSync(path.join(__dirname, '..', 'public', photo))) {
+    return res.status(400).json({ error: 'Photo introuvable, merci de reprendre la photo.' });
+  }
+  const lignesValides = Array.isArray(lignes)
+    ? lignes.filter((l) => l && l.marque_id && Number(l.quantite) > 0)
+    : [];
+  if (lignesValides.length === 0) {
+    return res.status(400).json({ error: 'Ajoutez au moins une ligne (marque + quantité) avant d\'envoyer.' });
+  }
+
+  const periode = currentPeriod();
+  const ticketId = uuid();
+  await run(
+    `INSERT INTO tickets (id, preparatrice_id, photo, periode, statut, texte_ocr) VALUES (?, ?, ?, ?, 'en_attente', ?)`,
+    [ticketId, req.preparatriceId, photo, periode, ocrText || null]
+  );
+
+  for (const ligne of lignesValides) {
+    const produit = await get('SELECT id FROM produits WHERE marque_id = ? LIMIT 1', [ligne.marque_id]);
+    await run(
+      `INSERT INTO ventes (id, preparatrice_id, produit_id, marque_id, quantite, periode, source, statut_validation, ticket_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'ticket_photo', 'en_attente', ?)`,
+      [uuid(), req.preparatriceId, produit ? produit.id : null, ligne.marque_id, Math.round(Number(ligne.quantite)), periode, ticketId]
+    );
+  }
+
+  res.json({ ok: true, ticketId });
 });
 
 module.exports = router;

@@ -14,9 +14,14 @@
           <h1 class="text-2xl font-bold text-nm-primary">Tableau de bord</h1>
           <p class="text-sm text-gray-400"><%= periodeLabel %></p>
         </div>
-        <% if (demandesEnAttente > 0) { %>
-          <a href="/admin/recompenses" class="badge-pill bg-nm-accent/10 text-nm-accent">🎁 <%= demandesEnAttente %> demande(s) de récompense en attente</a>
-        <% } %>
+        <div class="flex gap-2 flex-wrap justify-end">
+          <% if (ticketsEnAttente > 0) { %>
+            <a href="/admin/tickets" class="badge-pill bg-nm-accent/10 text-nm-accent">🧾 <%= ticketsEnAttente %> ticket(s) scanné(s) à valider</a>
+          <% } %>
+          <% if (demandesEnAttente > 0) { %>
+            <a href="/admin/recompenses" class="badge-pill bg-nm-accent/10 text-nm-accent">🎁 <%= demandesEnAttente %> demande(s) de récompense en attente</a>
+          <% } %>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">

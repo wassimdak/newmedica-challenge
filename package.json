@@ -12,8 +12,10 @@
     "cookie-parser": "^1.4.6",
     "ejs": "^3.1.10",
     "express": "^4.19.2",
+    "jimp": "^1.6.1",
     "multer": "^1.4.5-lts.1",
     "sqlite3": "^5.1.7",
+    "tesseract.js": "^7.0.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Tickets scannés — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-4xl">
+      <h1 class="text-2xl font-bold text-nm-primary mb-1">Tickets scannés</h1>
+      <p class="text-sm text-gray-400 mb-6">Ventes déclarées par photo de ticket (OCR) — à valider avant qu'elles ne comptent dans les objectifs et le classement.</p>
+
+      <div class="space-y-4">
+        <% tickets.forEach(t => { %>
+          <div class="nm-card p-4 flex flex-col sm:flex-row gap-4">
+            <a href="<%= t.photo %>" target="_blank" class="shrink-0">
+              <img src="<%= t.photo %>" alt="Ticket" class="w-full sm:w-28 h-40 sm:h-28 object-cover rounded-lg border border-gray-100" />
+            </a>
+            <div class="flex-1">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="font-semibold text-nm-primary"><%= t.prep_prenom %> <%= t.prep_nom %></p>
+                  <p class="text-[11px] text-gray-400"><%= t.pharmacie_nom %> · <%= new Date(t.created_at).toLocaleString('fr-FR') %></p>
+                </div>
+                <span class="badge-pill <%= t.statut === 'valide' ? 'bg-emerald-50 text-emerald-600' : t.statut === 'rejete' ? 'bg-red-50 text-red-500' : '' %>">
+                  <%= { en_attente: 'À valider', valide: 'Validé', rejete: 'Rejeté' }[t.statut] %>
+                </span>
+              </div>
+
+              <% if (t.lignes.length > 0) { %>
+                <ul class="mt-2 text-sm space-y-0.5">
+                  <% t.lignes.forEach(l => { %>
+                    <li class="text-gray-600"><span class="font-semibold text-nm-primary"><%= l.quantite %>×</span> <%= l.marque_nom %></li>
+                  <% }) %>
+                </ul>
+              <% } else { %>
+                <p class="text-xs text-gray-400 mt-2">Aucune ligne (ticket rejeté ou vide).</p>
+              <% } %>
+
+              <% if (t.statut === 'en_attente' && admin.role !== 'marque_lecture') { %>
+                <div class="flex gap-2 mt-3">
+                  <form method="POST" action="/admin/tickets/<%= t.id %>/valider">
+                    <button class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full">✓ Valider</button>
+                  </form>
+                  <form method="POST" action="/admin/tickets/<%= t.id %>/rejeter">
+                    <button class="text-xs font-semibold text-red-500 bg-red-50 px-3 py-1.5 rounded-full">✕ Rejeter</button>
+                  </form>
+                </div>
+              <% } else if (t.statut === 'rejete' && t.motif_rejet) { %>
+                <p class="text-[11px] text-red-400 mt-2">Motif : <%= t.motif_rejet %></p>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+        <% if (tickets.length === 0) { %>
+          <p class="text-sm text-gray-400">Aucun ticket scanné pour le moment.</p>
+        <% } %>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

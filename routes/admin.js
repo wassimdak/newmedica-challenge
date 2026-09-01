@@ -36,10 +36,11 @@ router.get('/dashboard', requireAdminPage, async (req, res) => {
   const kpis = await getKPIs(periode);
   const challengesActifs = await all('SELECT * FROM challenges WHERE actif = 1 ORDER BY periode_fin ASC');
   const demandesEnAttente = await get(`SELECT COUNT(*) AS n FROM echanges WHERE statut = 'demande'`);
+  const ticketsEnAttente = await get(`SELECT COUNT(*) AS n FROM tickets WHERE statut = 'en_attente'`);
 
   res.render('admin/dashboard', {
     page: 'dashboard', admin, periode, periodeLabel: periodLabel(periode), kpis, challengesActifs,
-    demandesEnAttente: demandesEnAttente.n,
+    demandesEnAttente: demandesEnAttente.n, ticketsEnAttente: ticketsEnAttente.n,
   });
 });
 
@@ -281,6 +282,45 @@ router.post('/echanges/:id/refuser', requireAdminApi, requireWriteAccess, async 
     await run('UPDATE recompenses SET stock = stock + 1 WHERE id = ?', [echange.recompense_id]);
   }
   res.redirect('/admin/recompenses');
+});
+
+// --- Tickets de caisse scannés (ventes déclaratives à valider avant qu'elles ne comptent) ---
+router.get('/tickets', requireAdminPage, async (req, res) => {
+  const admin = await loadAdmin(req);
+  const tickets = await all(
+    `SELECT t.*, p.nom AS prep_nom, p.prenom AS prep_prenom, ph.nom AS pharmacie_nom
+     FROM tickets t
+     JOIN preparatrices p ON p.id = t.preparatrice_id
+     JOIN pharmacies ph ON ph.id = p.pharmacie_id
+     ORDER BY (t.statut = 'en_attente') DESC, t.created_at DESC LIMIT 60`
+  );
+  for (const ticket of tickets) {
+    ticket.lignes = await all(
+      `SELECT v.quantite, m.nom AS marque_nom FROM ventes v JOIN marques m ON m.id = v.marque_id WHERE v.ticket_id = ?`,
+      [ticket.id]
+    );
+  }
+  res.render('admin/tickets', { page: 'tickets', admin, tickets });
+});
+
+router.post('/tickets/:id/valider', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const ticket = await get('SELECT * FROM tickets WHERE id = ?', [req.params.id]);
+  if (!ticket || ticket.statut !== 'en_attente') return res.redirect('/admin/tickets');
+
+  await run(`UPDATE ventes SET statut_validation = 'valide' WHERE ticket_id = ?`, [ticket.id]);
+  await run(`UPDATE tickets SET statut = 'valide' WHERE id = ?`, [ticket.id]);
+  await recalculerPointsVentes(ticket.preparatrice_id, ticket.periode);
+  await recalcParticipations(ticket.periode);
+  res.redirect('/admin/tickets');
+});
+
+router.post('/tickets/:id/rejeter', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const ticket = await get('SELECT * FROM tickets WHERE id = ?', [req.params.id]);
+  if (!ticket || ticket.statut !== 'en_attente') return res.redirect('/admin/tickets');
+
+  await run(`DELETE FROM ventes WHERE ticket_id = ?`, [ticket.id]);
+  await run(`UPDATE tickets SET statut = 'rejete', motif_rejet = ? WHERE id = ?`, [req.body.motif || 'Ticket illisible ou non conforme', ticket.id]);
+  res.redirect('/admin/tickets');
 });
 
 // --- Reporting ---

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Scanner un ticket — NewMedica Challenge', pwa: true }) %>
+</head>
+<body class="min-h-screen bg-nm-bg pb-24">
+  <header class="nm-gradient px-5 pt-6 pb-8 rounded-b-3xl">
+    <div class="max-w-md mx-auto flex items-center gap-3">
+      <a href="/" class="text-white text-xl leading-none">←</a>
+      <div>
+        <h1 class="text-white text-xl font-bold">Scanner un ticket</h1>
+        <p class="text-white/70 text-xs mt-0.5">Photo du ticket de caisse → détection automatique des produits</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-5 -mt-3">
+    <div class="nm-card p-4">
+      <div id="capture-zone" class="border-2 border-dashed border-nm-primary/30 rounded-xl py-8 text-center cursor-pointer">
+        <span class="text-4xl block mb-2">📷</span>
+        <p class="text-sm font-semibold text-nm-primary">Prendre une photo du ticket</p>
+        <p class="text-[11px] text-gray-400 mt-1">Cadre bien le ticket, à plat et sans reflet</p>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" />
+
+      <div id="preview-zone" class="hidden mt-3">
+        <img id="preview-img" class="w-full rounded-lg border border-gray-100" />
+      </div>
+
+      <div id="analyse-status" class="hidden mt-3 flex items-center gap-2 text-sm text-nm-primary">
+        <span class="animate-pulse">🔎</span> <span id="analyse-status-text">Analyse du ticket en cours…</span>
+      </div>
+    </div>
+
+    <div id="lignes-zone" class="hidden nm-card p-4 mt-4">
+      <p class="text-xs font-bold text-gray-400 uppercase mb-3">Produits détectés — vérifie et corrige si besoin</p>
+      <div id="lignes-list" class="space-y-2"></div>
+      <button id="btn-ajouter-ligne" type="button" class="mt-3 text-xs font-semibold text-nm-primary underline">+ Ajouter une ligne</button>
+
+      <button id="btn-envoyer" type="button"
+        class="w-full mt-4 bg-nm-accent text-white font-semibold rounded-lg py-2.5 text-sm hover:opacity-90 transition">
+        Envoyer pour validation
+      </button>
+      <p class="text-[11px] text-gray-400 mt-2 text-center">Les ventes déclarées ainsi sont vérifiées par NewMedica avant de compter dans ton objectif.</p>
+    </div>
+
+    <% if (tickets.length > 0) { %>
+      <p class="text-sm font-bold text-gray-500 mt-6 mb-2">Mes tickets récents</p>
+      <div class="space-y-2 mb-4">
+        <% tickets.forEach(t => { %>
+          <div class="nm-card p-3 flex items-center gap-3">
+            <img src="<%= t.photo %>" class="w-12 h-12 object-cover rounded-lg border border-gray-100" />
+            <div class="flex-1">
+              <p class="text-xs text-gray-500"><%= new Date(t.created_at).toLocaleString('fr-FR') %></p>
+            </div>
+            <span class="badge-pill <%= t.statut === 'valide' ? 'bg-emerald-50 text-emerald-600' : t.statut === 'rejete' ? 'bg-red-50 text-red-500' : '' %>">
+              <%= { en_attente: 'À valider', valide: 'Validé', rejete: 'Rejeté' }[t.statut] %>
+            </span>
+          </div>
+        <% }) %>
+      </div>
+    <% } %>
+  </main>
+
+  <div id="toast" class="nm-toast"></div>
+  <%- include('../partials/app-nav', { active: 'accueil' }) %>
+  <script id="marques-data" type="application/json"><%- JSON.stringify(marques) %></script>
+  <script src="/js/scanner.js"></script>
+</body>
+</html>
