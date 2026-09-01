@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Mon profil — NewMedica Challenge' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg pb-24">
+  <header class="nm-gradient px-5 pt-6 pb-12 rounded-b-3xl">
+    <div class="max-w-md mx-auto flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-white/15 flex items-center justify-center text-white text-2xl font-bold">
+        <%= preparatrice.prenom.charAt(0) %><%= preparatrice.nom.charAt(0) %>
+      </div>
+      <div>
+        <h1 class="text-white text-lg font-bold"><%= preparatrice.prenom %> <%= preparatrice.nom %></h1>
+        <p class="text-white/70 text-xs"><%= preparatrice.pharmacie_nom %> · <%= preparatrice.region_nom %></p>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-5 -mt-6">
+    <div class="nm-card p-4">
+      <p class="text-xs font-bold text-gray-400 uppercase mb-2">Informations</p>
+      <div class="text-sm space-y-1.5">
+        <p class="flex justify-between"><span class="text-gray-400">Email</span><span class="text-nm-primary font-medium"><%= preparatrice.email %></span></p>
+        <p class="flex justify-between"><span class="text-gray-400">Téléphone</span><span class="text-nm-primary font-medium"><%= preparatrice.telephone || '—' %></span></p>
+        <p class="flex justify-between"><span class="text-gray-400">Entrée en poste</span><span class="text-nm-primary font-medium"><%= preparatrice.date_entree %></span></p>
+      </div>
+    </div>
+
+    <p class="text-sm font-bold text-gray-500 mt-5 mb-2">Mes badges</p>
+    <div class="grid grid-cols-4 gap-2">
+      <% badges.forEach(b => { %>
+        <div class="nm-card p-2 text-center">
+          <span class="text-2xl block">🏅</span>
+          <span class="text-[10px] font-semibold text-nm-primary leading-tight block mt-1"><%= b.nom %></span>
+        </div>
+      <% }) %>
+      <% if (badges.length === 0) { %><p class="text-xs text-gray-400 col-span-4">Aucun badge pour le moment.</p><% } %>
+    </div>
+
+    <p class="text-sm font-bold text-gray-500 mt-5 mb-2">Historique de performance</p>
+    <div class="nm-card p-4 space-y-2">
+      <% historique.forEach(h => { %>
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-gray-500"><%= h.periodeLabel %></span>
+          <span class="font-semibold text-nm-primary"><%= h.ventesRealisees %> / <%= h.cible %> unités</span>
+        </div>
+      <% }) %>
+      <% if (historique.length === 0) { %><p class="text-xs text-gray-400">Aucun historique disponible.</p><% } %>
+    </div>
+
+    <p class="text-sm font-bold text-gray-500 mt-5 mb-2">Notifications</p>
+    <div class="nm-card p-4 space-y-3">
+      <% notifications.forEach(n => { %>
+        <div class="flex items-start gap-2 <%= n.lu ? 'opacity-50' : '' %>">
+          <span class="text-lg">🔔</span>
+          <div>
+            <p class="text-xs font-semibold text-nm-primary"><%= n.titre %></p>
+            <p class="text-[11px] text-gray-400"><%= n.message %></p>
+          </div>
+        </div>
+      <% }) %>
+      <% if (notifications.length === 0) { %><p class="text-xs text-gray-400">Aucune notification.</p><% } %>
+    </div>
+
+    <form method="POST" action="/logout" class="mt-6 mb-4">
+      <button type="submit" class="w-full bg-white text-red-500 font-semibold text-sm py-2.5 rounded-lg border border-red-100">
+        Se déconnecter
+      </button>
+    </form>
+  </main>
+
+  <%- include('../partials/app-nav', { active: 'profil' }) %>
+</body>
+</html>

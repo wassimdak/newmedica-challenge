@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Objectifs — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-nm-primary">Objectifs</h1>
+          <p class="text-sm text-gray-400"><%= periodeLabel %> — Objectif = Ventes N-1 × (1 + taux de croissance)</p>
+        </div>
+        <form method="GET" class="flex items-center gap-2">
+          <input type="month" name="periode" value="<%= periode %>" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" onchange="this.form.submit()" />
+        </form>
+      </div>
+
+      <div class="nm-card p-4 overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-400 border-b">
+              <th class="py-2">Préparatrice</th><th>Pharmacie</th><th class="text-right">Ventes N-1</th>
+              <th class="text-right">Taux</th><th class="text-right">Objectif calculé</th>
+              <th class="text-right">Ajustement</th><th class="text-right">Réalisé</th>
+              <% if (admin.role !== 'marque_lecture') { %><th></th><% } %>
+            </tr>
+          </thead>
+          <tbody>
+            <% objectifs.forEach(o => { %>
+              <tr class="border-b last:border-0">
+                <td class="py-2.5 font-semibold text-nm-primary"><%= o.prep_prenom %> <%= o.prep_nom %></td>
+                <td class="text-gray-500"><%= o.pharmacie_nom %></td>
+                <td class="text-right text-gray-500"><%= o.ventes_n1 %></td>
+                <td class="text-right text-gray-500"><%= Math.round(o.taux_croissance * 100) %>%</td>
+                <td class="text-right text-gray-500"><%= o.objectif_calcule %></td>
+                <td class="text-right font-semibold text-nm-accent"><%= o.ajustement_manuel != null ? o.ajustement_manuel : '—' %></td>
+                <td class="text-right font-semibold text-nm-primary"><%= o.ventesRealisees %> / <%= o.cible %></td>
+                <% if (admin.role !== 'marque_lecture') { %>
+                <td class="text-right">
+                  <button class="text-xs text-nm-primary underline" onclick="document.getElementById('form-<%= o.id %>').classList.toggle('hidden')">Ajuster</button>
+                </td>
+                <% } %>
+              </tr>
+              <% if (admin.role !== 'marque_lecture') { %>
+              <tr id="form-<%= o.id %>" class="hidden bg-nm-bg/50">
+                <td colspan="8" class="p-3">
+                  <form method="POST" action="/admin/objectifs/<%= o.id %>/ajuster" class="flex items-end gap-2">
+                    <div>
+                      <label class="text-[11px] text-gray-400">Objectif ajusté (unités)</label>
+                      <input type="number" name="valeur" value="<%= o.ajustement_manuel != null ? o.ajustement_manuel : '' %>" class="mt-1 w-32 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div class="flex-1">
+                      <label class="text-[11px] text-gray-400">Motif</label>
+                      <input name="motif" value="<%= o.ajustement_motif || '' %>" placeholder="ex. nouvelle pharmacie sans historique" class="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <button type="submit" class="bg-nm-primary text-white text-xs font-semibold rounded-lg px-4 py-2">Enregistrer</button>
+                  </form>
+                </td>
+              </tr>
+              <% } %>
+            <% }) %>
+            <% if (objectifs.length === 0) { %><tr><td colspan="8" class="text-gray-400 py-4 text-center">Aucune donnée.</td></tr><% } %>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

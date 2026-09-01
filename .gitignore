@@ -1,0 +1,4 @@
+node_modules/
+newmedica.db
+.env
+*.log

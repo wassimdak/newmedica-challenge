@@ -1,0 +1,30 @@
+<aside class="w-60 shrink-0 nm-gradient min-h-screen text-white px-4 py-6 hidden md:flex md:flex-col">
+  <div class="flex items-center gap-2 px-2 mb-8">
+    <span class="text-2xl">🏆</span>
+    <div>
+      <p class="font-bold leading-tight">NewMedica</p>
+      <p class="text-white/60 text-[11px] leading-tight">Back-office</p>
+    </div>
+  </div>
+
+  <nav class="space-y-1 text-sm flex-1">
+    <a href="/admin/dashboard" class="block px-3 py-2 rounded-lg <%= page === 'dashboard' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">📊 Tableau de bord</a>
+    <a href="/admin/preparatrices" class="block px-3 py-2 rounded-lg <%= page === 'preparatrices' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">👩‍⚕️ Préparatrices</a>
+    <a href="/admin/pharmacies" class="block px-3 py-2 rounded-lg <%= page === 'pharmacies' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">🏥 Pharmacies</a>
+    <a href="/admin/ventes" class="block px-3 py-2 rounded-lg <%= page === 'ventes' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">📦 Ventes</a>
+    <a href="/admin/objectifs" class="block px-3 py-2 rounded-lg <%= page === 'objectifs' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">🎯 Objectifs</a>
+    <a href="/admin/challenges" class="block px-3 py-2 rounded-lg <%= page === 'challenges' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">🚩 Challenges</a>
+    <a href="/admin/recompenses" class="block px-3 py-2 rounded-lg <%= page === 'recompenses' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">🎁 Récompenses</a>
+    <a href="/admin/reporting" class="block px-3 py-2 rounded-lg <%= page === 'reporting' ? 'bg-white/15 font-semibold' : 'text-white/70 hover:bg-white/10' %>">📈 Reporting</a>
+  </nav>
+
+  <div class="border-t border-white/15 pt-4 mt-4">
+    <p class="text-xs font-semibold"><%= admin.nom %></p>
+    <p class="text-[11px] text-white/50">
+      <%= { super_admin: 'Administrateur', kam_regional: 'KAM régional', marque_lecture: 'Marque (lecture seule)' }[admin.role] %>
+    </p>
+    <form method="POST" action="/admin/logout" class="mt-3">
+      <button class="text-[11px] text-white/70 underline">Se déconnecter</button>
+    </form>
+  </div>
+</aside>

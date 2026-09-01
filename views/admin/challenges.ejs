@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Challenges — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <h1 class="text-2xl font-bold text-nm-primary mb-6">Challenges</h1>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-3">
+          <% challenges.forEach(c => { %>
+            <div class="nm-card p-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <span class="badge-pill"><%= { principal: 'Principal', marque: 'Marque', mission: 'Mission bonus', defi: 'Défi ponctuel' }[c.type] %></span>
+                  <% if (c.marque_nom) { %><span class="text-xs text-gray-400 ml-2"><%= c.marque_nom %></span><% } %>
+                  <h3 class="font-bold text-nm-primary mt-1"><%= c.nom %></h3>
+                  <p class="text-[11px] text-gray-400 mt-0.5"><%= c.periode_debut %> → <%= c.periode_fin %> · <%= c.perimetre %></p>
+                  <% if (c.objectif_unites) { %><p class="text-xs text-gray-500 mt-1">Objectif : <%= c.objectif_unites %> unités</p><% } %>
+                  <p class="text-xs text-gray-400 mt-1"><%= c.regles_points %></p>
+                </div>
+                <% if (admin.role !== 'marque_lecture') { %>
+                <button class="btn-toggle-challenge text-xs font-semibold px-3 py-1.5 rounded-full <%= c.actif ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400' %>" data-id="<%= c.id %>">
+                  <%= c.actif ? 'Actif' : 'Inactif' %>
+                </button>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
+          <% if (challenges.length === 0) { %><p class="text-sm text-gray-400">Aucun challenge.</p><% } %>
+        </div>
+
+        <% if (admin.role !== 'marque_lecture') { %>
+        <div class="nm-card p-5 h-fit">
+          <h2 class="font-bold text-nm-primary mb-3">Créer un challenge</h2>
+          <form method="POST" action="/admin/challenges" class="space-y-3 text-sm">
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Nom</label>
+              <input name="nom" required class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Type</label>
+              <select name="type" id="challenge-type" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <option value="principal">Challenge principal</option>
+                <option value="marque">Challenge marque</option>
+                <option value="mission">Mission bonus</option>
+                <option value="defi">Défi ponctuel</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Marque concernée</label>
+              <select name="marque_id" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <option value="">—</option>
+                <% marques.forEach(m => { %><option value="<%= m.id %>"><%= m.nom %></option><% }) %>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs font-semibold text-gray-500">Début</label>
+                <input type="date" name="periode_debut" required value="<%= periode %>-01" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500">Fin</label>
+                <input type="date" name="periode_fin" required value="<%= periode %>-30" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Périmètre</label>
+              <select name="perimetre" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <option value="national">National</option>
+                <option value="regional">Régional</option>
+                <option value="pharmacie">Pharmacie</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Objectif (unités, optionnel)</label>
+              <input type="number" name="objectif_unites" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Règles de points</label>
+              <textarea name="regles_points" rows="2" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"></textarea>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Récompense associée</label>
+              <input name="recompense_associee" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="w-full bg-nm-primary text-white font-semibold rounded-lg py-2.5 text-sm">Créer et activer</button>
+          </form>
+        </div>
+        <% } %>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

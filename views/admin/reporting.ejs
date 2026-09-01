@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Reporting — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-nm-primary">Reporting</h1>
+          <p class="text-sm text-gray-400"><%= periodeLabel %></p>
+        </div>
+        <form method="GET" class="flex items-center gap-2">
+          <input type="month" name="periode" value="<%= periode %>" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" onchange="this.form.submit()" />
+        </form>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="nm-card p-4"><p class="text-xs text-gray-400">Engagement</p><p class="text-2xl font-bold text-nm-primary mt-1"><%= kpis.tauxEngagement %>%</p></div>
+        <div class="nm-card p-4"><p class="text-xs text-gray-400">Atteinte objectifs</p><p class="text-2xl font-bold text-nm-primary mt-1"><%= kpis.tauxAtteinte %>%</p></div>
+        <div class="nm-card p-4"><p class="text-xs text-gray-400">Volume ventes</p><p class="text-2xl font-bold text-nm-primary mt-1"><%= kpis.volumeVentes %> u.</p></div>
+        <div class="nm-card p-4"><p class="text-xs text-gray-400">Conversion points</p><p class="text-2xl font-bold text-nm-accent mt-1"><%= kpis.tauxConversionPoints %>%</p></div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="nm-card p-5">
+          <p class="text-sm font-bold text-gray-500 mb-4">Volume de ventes par marque</p>
+          <div class="space-y-3">
+            <% parMarque.forEach(m => { %>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span><%= m.nom %></span><span class="font-semibold"><%= m.volume %> u.</span>
+                </div>
+                <div class="w-full h-2 bg-nm-bg rounded-full overflow-hidden">
+                  <div class="h-full bg-nm-accent rounded-full" style="width: <%= Math.round((m.volume / maxVolumeMarque) * 100) %>%"></div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+
+        <div class="nm-card p-5">
+          <p class="text-sm font-bold text-gray-500 mb-4">Volume de ventes par région</p>
+          <div class="space-y-3">
+            <% parRegion.forEach(r => { %>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span><%= r.nom %></span><span class="font-semibold"><%= r.volume %> u.</span>
+                </div>
+                <div class="w-full h-2 bg-nm-bg rounded-full overflow-hidden">
+                  <div class="h-full bg-nm-primary rounded-full" style="width: <%= Math.round((r.volume / maxVolumeRegion) * 100) %>%"></div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="nm-card p-5 mt-6">
+        <p class="text-sm font-bold text-gray-500 mb-3">Export</p>
+        <p class="text-xs text-gray-400">L'export CSV/API des données détaillées est prévu au périmètre back-office (§6.7) — à connecter à un entrepôt de données ou outil BI en fonction du prestataire retenu.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

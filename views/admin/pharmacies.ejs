@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Pharmacies — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <h1 class="text-2xl font-bold text-nm-primary mb-6">Pharmacies</h1>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 nm-card p-4 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-gray-400 border-b">
+                <th class="py-2">Nom</th><th>Région</th><th>Adresse</th><th class="text-right">Préparatrices</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% pharmacies.forEach(p => { %>
+                <tr class="border-b last:border-0">
+                  <td class="py-2.5 font-semibold text-nm-primary"><%= p.nom %></td>
+                  <td class="text-gray-500"><%= p.region_nom || '—' %></td>
+                  <td class="text-gray-500"><%= p.adresse || '—' %></td>
+                  <td class="text-right text-gray-500"><%= p.nb_preparatrices %></td>
+                </tr>
+              <% }) %>
+              <% if (pharmacies.length === 0) { %><tr><td colspan="4" class="text-gray-400 py-4 text-center">Aucune pharmacie.</td></tr><% } %>
+            </tbody>
+          </table>
+        </div>
+
+        <% if (admin.role !== 'marque_lecture') { %>
+        <div class="nm-card p-5 h-fit">
+          <h2 class="font-bold text-nm-primary mb-3">Ajouter une pharmacie</h2>
+          <form method="POST" action="/admin/pharmacies" class="space-y-3 text-sm">
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Nom</label>
+              <input name="nom" required class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Adresse</label>
+              <input name="adresse" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Région</label>
+              <select name="region_id" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <% regions.forEach(r => { %><option value="<%= r.id %>"><%= r.nom %></option><% }) %>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Groupement (optionnel)</label>
+              <input name="groupement" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="w-full bg-nm-primary text-white font-semibold rounded-lg py-2.5 text-sm">Créer</button>
+          </form>
+        </div>
+        <% } %>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Récompenses — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <h1 class="text-2xl font-bold text-nm-primary mb-6">Récompenses</h1>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+          <div class="nm-card p-4 overflow-x-auto">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-2">Catalogue</p>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-gray-400 border-b">
+                  <th class="py-2">Nom</th><th>Catégorie</th><th class="text-right">Coût</th><th class="text-right">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% catalogue.forEach(r => { %>
+                  <tr class="border-b last:border-0">
+                    <td class="py-2.5 font-semibold text-nm-primary"><%= r.nom %></td>
+                    <td class="text-gray-500"><%= r.categorie %></td>
+                    <td class="text-right text-gray-500"><%= r.cout_points %> pts</td>
+                    <td class="text-right text-gray-500"><%= r.stock %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="nm-card p-4 overflow-x-auto">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-2">Demandes d'échange</p>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-gray-400 border-b">
+                  <th class="py-2">Préparatrice</th><th>Récompense</th><th class="text-right">Coût</th><th>Statut</th>
+                  <% if (admin.role !== 'marque_lecture') { %><th></th><% } %>
+                </tr>
+              </thead>
+              <tbody>
+                <% echanges.forEach(e => { %>
+                  <tr class="border-b last:border-0">
+                    <td class="py-2.5 font-semibold text-nm-primary"><%= e.prep_prenom %> <%= e.prep_nom %></td>
+                    <td class="text-gray-500"><%= e.recompense_nom %></td>
+                    <td class="text-right text-gray-500"><%= e.cout_points %> pts</td>
+                    <td>
+                      <span class="badge-pill <%= e.statut === 'refuse' ? 'bg-red-50 text-red-500' : e.statut === 'livre' ? 'bg-emerald-50 text-emerald-600' : '' %>">
+                        <%= { demande: 'Demandée', valide: 'Validée', livre: 'Livrée', refuse: 'Refusée' }[e.statut] %>
+                      </span>
+                    </td>
+                    <% if (admin.role !== 'marque_lecture') { %>
+                    <td class="text-right space-x-2 whitespace-nowrap">
+                      <% if (e.statut === 'demande') { %>
+                        <form method="POST" action="/admin/echanges/<%= e.id %>/valider" class="inline"><button class="text-xs text-emerald-600 underline">Valider</button></form>
+                        <form method="POST" action="/admin/echanges/<%= e.id %>/refuser" class="inline"><button class="text-xs text-red-500 underline">Refuser</button></form>
+                      <% } else if (e.statut === 'valide') { %>
+                        <form method="POST" action="/admin/echanges/<%= e.id %>/livrer" class="inline"><button class="text-xs text-nm-primary underline">Marquer livrée</button></form>
+                      <% } %>
+                    </td>
+                    <% } %>
+                  </tr>
+                <% }) %>
+                <% if (echanges.length === 0) { %><tr><td colspan="5" class="text-gray-400 py-4 text-center">Aucune demande.</td></tr><% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <% if (admin.role !== 'marque_lecture') { %>
+        <div class="nm-card p-5 h-fit">
+          <h2 class="font-bold text-nm-primary mb-3">Ajouter une récompense</h2>
+          <form method="POST" action="/admin/recompenses" class="space-y-3 text-sm">
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Nom</label>
+              <input name="nom" required class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Catégorie</label>
+              <select name="categorie" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                <option value="cadeau">Cadeau</option>
+                <option value="bon_achat">Bon d'achat</option>
+                <option value="produit">Produit de la gamme</option>
+                <option value="formation">Formation</option>
+                <option value="evenement">Événement</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-xs font-semibold text-gray-500">Coût (points)</label>
+                <input type="number" name="cout_points" required class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500">Stock</label>
+                <input type="number" name="stock" required class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500">Condition d'éligibilité (optionnel)</label>
+              <input name="condition_eligibilite" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" class="w-full bg-nm-primary text-white font-semibold rounded-lg py-2.5 text-sm">Ajouter au catalogue</button>
+          </form>
+        </div>
+        <% } %>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

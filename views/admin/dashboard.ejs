@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Tableau de bord — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-nm-primary">Tableau de bord</h1>
+          <p class="text-sm text-gray-400"><%= periodeLabel %></p>
+        </div>
+        <% if (demandesEnAttente > 0) { %>
+          <a href="/admin/recompenses" class="badge-pill bg-nm-accent/10 text-nm-accent">🎁 <%= demandesEnAttente %> demande(s) de récompense en attente</a>
+        <% } %>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="nm-card p-4">
+          <p class="text-xs text-gray-400">Taux d'engagement</p>
+          <p class="text-2xl font-bold text-nm-primary mt-1"><%= kpis.tauxEngagement %>%</p>
+          <p class="text-[11px] text-gray-400 mt-1"><%= kpis.avecVentes %> / <%= kpis.totalActives %> préparatrices actives</p>
+        </div>
+        <div class="nm-card p-4">
+          <p class="text-xs text-gray-400">Taux d'atteinte des objectifs</p>
+          <p class="text-2xl font-bold text-nm-primary mt-1"><%= kpis.tauxAtteinte %>%</p>
+          <p class="text-[11px] text-gray-400 mt-1"><%= kpis.objectifsAtteints %> / <%= kpis.totalObjectifs %> objectifs</p>
+        </div>
+        <div class="nm-card p-4">
+          <p class="text-xs text-gray-400">Volume de ventes</p>
+          <p class="text-2xl font-bold text-nm-primary mt-1"><%= kpis.volumeVentes %> u.</p>
+          <p class="text-[11px] <%= kpis.croissanceVentes >= 0 ? 'text-emerald-500' : 'text-red-500' %> mt-1">
+            <%= kpis.croissanceVentes !== null ? (kpis.croissanceVentes >= 0 ? '▲' : '▼') + ' ' + Math.abs(kpis.croissanceVentes) + '% vs N-1' : '—' %>
+          </p>
+        </div>
+        <div class="nm-card p-4">
+          <p class="text-xs text-gray-400">Points distribués</p>
+          <p class="text-2xl font-bold text-nm-accent mt-1"><%= kpis.pointsDistribues %></p>
+          <p class="text-[11px] text-gray-400 mt-1"><%= kpis.tauxConversionPoints %>% convertis en récompenses</p>
+        </div>
+      </div>
+
+      <p class="text-sm font-bold text-gray-500 mt-8 mb-3">Challenges actifs</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <% challengesActifs.forEach(c => { %>
+          <div class="nm-card p-4">
+            <div class="flex items-center justify-between">
+              <span class="badge-pill"><%= { principal: 'Principal', marque: 'Marque', mission: 'Mission bonus', defi: 'Défi ponctuel' }[c.type] %></span>
+              <span class="text-[11px] text-gray-400"><%= c.periode_debut %> → <%= c.periode_fin %></span>
+            </div>
+            <h3 class="font-bold text-nm-primary mt-2"><%= c.nom %></h3>
+          </div>
+        <% }) %>
+        <% if (challengesActifs.length === 0) { %><p class="text-sm text-gray-400">Aucun challenge actif.</p><% } %>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4 mt-8">
+        <a href="/admin/ventes" class="nm-card p-4 text-center hover:shadow-md transition">
+          <span class="text-2xl block mb-1">📦</span>
+          <span class="text-sm font-semibold text-nm-primary">Importer des ventes</span>
+        </a>
+        <a href="/admin/challenges" class="nm-card p-4 text-center hover:shadow-md transition">
+          <span class="text-2xl block mb-1">🚩</span>
+          <span class="text-sm font-semibold text-nm-primary">Gérer les challenges</span>
+        </a>
+        <a href="/admin/reporting" class="nm-card p-4 text-center hover:shadow-md transition">
+          <span class="text-2xl block mb-1">📈</span>
+          <span class="text-sm font-semibold text-nm-primary">Voir le reporting détaillé</span>
+        </a>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

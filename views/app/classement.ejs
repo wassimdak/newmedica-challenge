@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Mon classement — NewMedica Challenge' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg pb-24">
+  <header class="nm-gradient px-5 pt-6 pb-8 rounded-b-3xl">
+    <div class="max-w-md mx-auto">
+      <h1 class="text-white text-xl font-bold">Mon classement</h1>
+      <p class="text-white/70 text-xs mt-0.5"><%= periodeLabel %> — % d'atteinte de l'objectif</p>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-5 -mt-3">
+    <div class="nm-card p-3 flex gap-2 text-xs font-semibold">
+      <a href="/classement?maille=pharmacie<%= marqueId ? '&marque=' + marqueId : '' %>"
+        class="flex-1 text-center py-2 rounded-lg <%= maille === 'pharmacie' ? 'bg-nm-primary text-white' : 'text-gray-400' %>">Pharmacie</a>
+      <a href="/classement?maille=regional<%= marqueId ? '&marque=' + marqueId : '' %>"
+        class="flex-1 text-center py-2 rounded-lg <%= maille === 'regional' ? 'bg-nm-primary text-white' : 'text-gray-400' %>">Régional</a>
+      <a href="/classement?maille=national<%= marqueId ? '&marque=' + marqueId : '' %>"
+        class="flex-1 text-center py-2 rounded-lg <%= maille === 'national' ? 'bg-nm-primary text-white' : 'text-gray-400' %>">National</a>
+    </div>
+
+    <div class="flex gap-2 mt-3 overflow-x-auto pb-1">
+      <a href="/classement?maille=<%= maille %>"
+        class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap <%= !marqueId ? 'bg-nm-accent text-white' : 'bg-white text-gray-500' %>">Toutes marques</a>
+      <% marques.forEach(m => { %>
+        <a href="/classement?maille=<%= maille %>&marque=<%= m.id %>"
+          class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap <%= marqueId === m.id ? 'bg-nm-accent text-white' : 'bg-white text-gray-500' %>"><%= m.nom %></a>
+      <% }) %>
+    </div>
+
+    <% if (position) { %>
+      <div class="rounded-2xl p-4 mt-4 flex items-center justify-between nm-gradient shadow">
+        <div>
+          <p class="text-white/70 text-xs">Votre position</p>
+          <p class="text-white font-bold text-lg"><%= position.rang %> / <%= totalParticipantes %></p>
+        </div>
+        <p class="text-white font-bold text-xl"><%= position.pctAtteinte %><%= marqueId ? ' unités' : '%' %></p>
+      </div>
+    <% } %>
+
+    <div class="nm-card p-4 mt-4">
+      <p class="text-xs font-bold text-gray-400 uppercase mb-3">Top classement</p>
+      <div class="space-y-2">
+        <% top.forEach(function(p, i) { %>
+          <div class="flex items-center justify-between py-1.5 <%= p.id === preparatrice.id ? 'bg-nm-bg -mx-2 px-2 rounded-lg' : '' %>">
+            <div class="flex items-center gap-3">
+              <span class="w-6 text-center font-bold <%= i < 3 ? 'text-nm-accent' : 'text-gray-400' %>">
+                <%= i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : p.rang %>
+              </span>
+              <div>
+                <p class="text-sm font-semibold text-nm-primary"><%= p.prenom %> <%= p.nom.charAt(0) %>.</p>
+                <p class="text-[11px] text-gray-400"><%= p.pharmacie_nom %></p>
+              </div>
+            </div>
+            <span class="text-sm font-bold text-nm-primary"><%= p.pctAtteinte %><%= marqueId ? '' : '%' %></span>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </main>
+
+  <%- include('../partials/app-nav', { active: 'classement' }) %>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Ventes — Back-office NewMedica' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg">
+  <%- include('../partials/admin-mobile-nav', { page }) %>
+  <div class="flex flex-col md:flex-row">
+    <%- include('../partials/admin-sidebar', { page, admin }) %>
+
+    <main class="flex-1 p-6 md:p-8 max-w-6xl">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-nm-primary">Ventes</h1>
+        <form method="GET" class="flex items-center gap-2">
+          <input type="month" name="periode" value="<%= periode %>" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" onchange="this.form.submit()" />
+        </form>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 nm-card p-4 overflow-x-auto">
+          <p class="text-xs text-gray-400 mb-2"><%= periodeLabel %> — <%= ventes.length %> ligne(s) récentes</p>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-gray-400 border-b">
+                <th class="py-2">Préparatrice</th><th>Pharmacie</th><th>Marque</th><th class="text-right">Quantité</th><th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% ventes.forEach(v => { %>
+                <tr class="border-b last:border-0">
+                  <td class="py-2.5 font-semibold text-nm-primary"><%= v.prep_prenom %> <%= v.prep_nom %></td>
+                  <td class="text-gray-500"><%= v.pharmacie_nom %></td>
+                  <td class="text-gray-500"><%= v.marque_nom %></td>
+                  <td class="text-right text-gray-500"><%= v.quantite %></td>
+                  <td><span class="badge-pill"><%= v.statut_validation %></span></td>
+                </tr>
+              <% }) %>
+              <% if (ventes.length === 0) { %><tr><td colspan="5" class="text-gray-400 py-4 text-center">Aucune vente pour cette période.</td></tr><% } %>
+            </tbody>
+          </table>
+        </div>
+
+        <% if (admin.role !== 'marque_lecture') { %>
+        <div class="nm-card p-5 h-fit">
+          <h2 class="font-bold text-nm-primary mb-2">Import des ventes (CSV)</h2>
+          <p class="text-[11px] text-gray-400 mb-3">
+            Colonnes attendues : <code>email,marque,quantite,periode</code> (périodes au format AAAA-MM ; email = identifiant de la préparatrice).
+            Simule l'import fichier plat ou connecteur caisse/ERP décrit au cahier des charges.
+          </p>
+          <form method="POST" action="/admin/ventes/import" enctype="multipart/form-data" class="space-y-3 text-sm">
+            <input type="file" name="fichier" accept=".csv" required class="w-full text-xs" />
+            <button type="submit" class="w-full bg-nm-accent text-white font-semibold rounded-lg py-2.5 text-sm">Importer</button>
+          </form>
+          <% if (typeof importees !== 'undefined') { %>
+            <p class="text-xs text-emerald-500 mt-2"><%= importees %> ligne(s) de vente importée(s). Points et challenges recalculés.</p>
+          <% } %>
+        </div>
+        <% } %>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

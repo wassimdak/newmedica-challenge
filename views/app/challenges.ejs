@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <%- include('../partials/head', { title: 'Mes challenges — NewMedica Challenge' }) %>
+</head>
+<body class="min-h-screen bg-nm-bg pb-24">
+  <header class="nm-gradient px-5 pt-6 pb-8 rounded-b-3xl">
+    <div class="max-w-md mx-auto">
+      <h1 class="text-white text-xl font-bold">Mes challenges</h1>
+      <p class="text-white/70 text-xs mt-0.5"><%= periodeLabel %></p>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto px-5 -mt-3">
+    <% function challengeCard(c) { %>
+      <div class="nm-card p-4 mb-3">
+        <div class="flex items-start justify-between">
+          <div>
+            <span class="badge-pill"><%= c.typeLabel %></span>
+            <h3 class="font-bold text-nm-primary mt-2"><%= c.nom %></h3>
+            <% if (c.marque_nom) { %><p class="text-xs text-gray-400">Marque : <%= c.marque_nom %></p><% } %>
+          </div>
+          <% if (c.participation_statut === 'reussi') { %>
+            <span class="text-xl">✅</span>
+          <% } %>
+        </div>
+
+        <% if (c.objectif_unites) { %>
+          <div class="mt-3">
+            <div class="flex justify-between text-xs text-gray-400 mb-1">
+              <span><%= c.progression || 0 %> / <%= c.objectif_unites %> unités</span>
+              <span class="font-semibold text-nm-primary"><%= c.pct %>%</span>
+            </div>
+            <div class="w-full h-2 bg-nm-bg rounded-full overflow-hidden">
+              <div class="h-full bg-nm-accent rounded-full" style="width: <%= c.pct %>%"></div>
+            </div>
+          </div>
+        <% } %>
+
+        <p class="text-xs text-gray-400 mt-3"><%= c.regles_points %></p>
+        <div class="flex items-center justify-between mt-3 text-[11px] text-gray-400">
+          <span>Du <%= c.periode_debut %> au <%= c.periode_fin %></span>
+          <span class="font-semibold text-nm-primary">🎁 <%= c.recompense_associee %></span>
+        </div>
+      </div>
+    <% } %>
+
+    <h2 class="text-sm font-bold text-gray-500 mb-2 mt-4">En cours</h2>
+    <% if (enCours.length === 0) { %>
+      <p class="text-sm text-gray-400">Aucun challenge en cours.</p>
+    <% } %>
+    <% enCours.forEach(challengeCard) %>
+
+    <% if (termines.length > 0) { %>
+      <h2 class="text-sm font-bold text-gray-500 mb-2 mt-6">Terminés</h2>
+      <% termines.forEach(challengeCard) %>
+    <% } %>
+  </main>
+
+  <%- include('../partials/app-nav', { active: 'challenges' }) %>
+</body>
+</html>
