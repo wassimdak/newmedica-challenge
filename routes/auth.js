@@ -1,13 +1,19 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { get } = require('../lib/dbHelpers');
-const { createSession, destroySession } = require('../lib/auth');
+const { createSession, destroySession, getSession } = require('../lib/auth');
 
 const router = express.Router();
 
 // --- Préparatrices ---
 router.get('/login', (req, res) => {
-  if (req.cookies.nm_app) return res.redirect('/');
+  // Vérifie la session réelle, pas juste la présence du cookie : les sessions sont en mémoire et
+  // ne survivent pas à un redémarrage serveur, un cookie périmé provoquerait sinon une boucle
+  // infinie de redirection entre /login et / (cookie présent -> redirige vers / -> session
+  // introuvable -> redirige vers /login -> ...).
+  const session = getSession(req.cookies.nm_app);
+  if (session && session.role === 'preparatrice') return res.redirect('/');
+  if (req.cookies.nm_app) res.clearCookie('nm_app');
   res.render('app/login', { error: null });
 });
 
@@ -33,7 +39,11 @@ router.post('/logout', (req, res) => {
 
 // --- Back-office ---
 router.get('/admin/login', (req, res) => {
-  if (req.cookies.nm_admin) return res.redirect('/admin/dashboard');
+  const session = getSession(req.cookies.nm_admin);
+  if (session && ['super_admin', 'kam_regional', 'marque_lecture'].includes(session.role)) {
+    return res.redirect('/admin/dashboard');
+  }
+  if (req.cookies.nm_admin) res.clearCookie('nm_admin');
   res.render('admin/login', { error: null });
 });
 
