@@ -70,7 +70,8 @@ router.post('/pharmacies', requireAdminApi, requireWriteAccess, async (req, res)
 router.get('/produits', requireAdminPage, async (req, res) => {
   const admin = await loadAdmin(req);
   const produits = await all(
-    `SELECT p.*, m.nom AS marque_nom FROM produits p JOIN marques m ON m.id = p.marque_id
+    `SELECT p.*, m.nom AS marque_nom, m.points_par_unite AS marque_points_defaut
+     FROM produits p JOIN marques m ON m.id = p.marque_id
      ORDER BY m.nom, p.nom`
   );
   const marques = await all('SELECT * FROM marques ORDER BY nom');
@@ -78,9 +79,10 @@ router.get('/produits', requireAdminPage, async (req, res) => {
 });
 
 router.post('/produits', requireAdminApi, requireWriteAccess, async (req, res) => {
-  const { nom, reference, marque_id, unite_vente } = req.body;
-  await run('INSERT INTO produits (id, nom, reference, marque_id, unite_vente, actif) VALUES (?, ?, ?, ?, ?, 1)', [
+  const { nom, reference, marque_id, unite_vente, points_par_unite } = req.body;
+  await run('INSERT INTO produits (id, nom, reference, marque_id, unite_vente, points_par_unite, actif) VALUES (?, ?, ?, ?, ?, ?, 1)', [
     uuid(), nom, reference, marque_id, unite_vente || 'unité',
+    points_par_unite === '' || points_par_unite == null ? null : parseInt(points_par_unite, 10),
   ]);
   res.redirect('/admin/produits');
 });
@@ -95,8 +97,10 @@ router.post('/produits/import', requireAdminApi, requireWriteAccess, upload.sing
     if (!marque || !reference) continue;
     const exists = await get('SELECT id FROM produits WHERE reference = ? AND marque_id = ?', [reference, marque.id]);
     if (exists) continue;
-    await run('INSERT INTO produits (id, nom, reference, marque_id, unite_vente, actif) VALUES (?, ?, ?, ?, ?, 1)', [
+    const pointsRaw = row.points_par_unite || row.points || '';
+    await run('INSERT INTO produits (id, nom, reference, marque_id, unite_vente, points_par_unite, actif) VALUES (?, ?, ?, ?, ?, ?, 1)', [
       uuid(), row.nom || row.designation || reference, reference, marque.id, row.unite_vente || row['unité_vente'] || 'unité',
+      pointsRaw === '' ? null : parseInt(pointsRaw, 10),
     ]);
     importees++;
   }
@@ -109,6 +113,13 @@ router.post('/produits/:id/toggle', requireAdminApi, requireWriteAccess, async (
   const nouveau = produit.actif ? 0 : 1;
   await run('UPDATE produits SET actif = ? WHERE id = ?', [nouveau, req.params.id]);
   res.json({ ok: true, actif: !!nouveau });
+});
+
+router.post('/produits/:id/points', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const { points_par_unite } = req.body;
+  const valeur = points_par_unite === '' || points_par_unite == null ? null : parseInt(points_par_unite, 10);
+  await run('UPDATE produits SET points_par_unite = ? WHERE id = ?', [valeur, req.params.id]);
+  res.redirect('/admin/produits');
 });
 
 // --- Préparatrices ---
@@ -195,7 +206,10 @@ router.post('/ventes/import', requireAdminApi, requireWriteAccess, upload.single
     if (!preparatrice) continue;
     const marque = await get('SELECT id, points_par_unite FROM marques WHERE LOWER(nom) = LOWER(?)', [row.marque || '']);
     if (!marque) continue;
-    const produit = await get('SELECT id FROM produits WHERE marque_id = ? LIMIT 1', [marque.id]);
+    const referenceProduit = (row.reference || row.ref || row.produit_reference || '').trim();
+    const produit = referenceProduit
+      ? await get('SELECT id FROM produits WHERE marque_id = ? AND reference = ?', [marque.id, referenceProduit])
+      : await get('SELECT id FROM produits WHERE marque_id = ? LIMIT 1', [marque.id]);
     const quantite = parseInt(row.quantite || row.quantité || '0', 10);
     const periode = row.periode || row.période || currentPeriod();
     if (!quantite || quantite <= 0) continue;

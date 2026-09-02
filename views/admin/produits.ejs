@@ -16,7 +16,7 @@
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs text-gray-400 border-b">
-                <th class="py-2">Produit</th><th>Référence</th><th>Marque</th><th>Unité</th><th>Statut</th><th></th>
+                <th class="py-2">Produit</th><th>Référence</th><th>Marque</th><th>Unité</th><th class="text-right">Points/unité</th><th>Statut</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -26,6 +26,16 @@
                   <td class="text-gray-500"><%= p.reference %></td>
                   <td class="text-gray-500"><%= p.marque_nom %></td>
                   <td class="text-gray-500"><%= p.unite_vente %></td>
+                  <td class="text-right">
+                    <% if (p.points_par_unite != null) { %>
+                      <span class="font-semibold text-nm-accent"><%= p.points_par_unite %></span>
+                    <% } else { %>
+                      <span class="text-gray-400" title="Hérite du taux de la marque">— (<%= p.marque_points_defaut %>)</span>
+                    <% } %>
+                    <% if (admin.role !== 'marque_lecture') { %>
+                      <button type="button" class="text-[11px] text-nm-primary underline ml-1" onclick="document.getElementById('points-form-<%= p.id %>').classList.toggle('hidden')">modifier</button>
+                    <% } %>
+                  </td>
                   <td>
                     <span class="badge-pill <%= p.actif ? '' : 'bg-red-50 text-red-500' %>"><%= p.actif ? 'actif' : 'inactif' %></span>
                   </td>
@@ -37,8 +47,22 @@
                     <% } %>
                   </td>
                 </tr>
+                <% if (admin.role !== 'marque_lecture') { %>
+                <tr id="points-form-<%= p.id %>" class="hidden bg-nm-bg/50">
+                  <td colspan="7" class="p-3">
+                    <form method="POST" action="/admin/produits/<%= p.id %>/points" class="flex items-end gap-2">
+                      <div>
+                        <label class="text-[11px] text-gray-400">Points par unité vendue (vide = hérite de la marque, <%= p.marque_points_defaut %> pt(s))</label>
+                        <input type="number" min="0" name="points_par_unite" value="<%= p.points_par_unite != null ? p.points_par_unite : '' %>"
+                          placeholder="<%= p.marque_points_defaut %>" class="mt-1 w-40 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                      </div>
+                      <button type="submit" class="bg-nm-primary text-white text-xs font-semibold rounded-lg px-4 py-2">Enregistrer</button>
+                    </form>
+                  </td>
+                </tr>
+                <% } %>
               <% }) %>
-              <% if (produits.length === 0) { %><tr><td colspan="6" class="text-gray-400 py-4 text-center">Aucun produit.</td></tr><% } %>
+              <% if (produits.length === 0) { %><tr><td colspan="7" class="text-gray-400 py-4 text-center">Aucun produit.</td></tr><% } %>
             </tbody>
           </table>
         </div>
@@ -66,13 +90,17 @@
                 <label class="text-xs font-semibold text-gray-500">Unité de vente</label>
                 <input name="unite_vente" value="unité" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-500">Points par unité (optionnel)</label>
+                <input type="number" min="0" name="points_par_unite" placeholder="hérite de la marque si vide" class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
               <button type="submit" class="w-full bg-nm-primary text-white font-semibold rounded-lg py-2.5 text-sm">Créer</button>
             </form>
           </div>
 
           <div class="nm-card p-5">
             <h2 class="font-bold text-nm-primary mb-2">Import en masse (CSV)</h2>
-            <p class="text-[11px] text-gray-400 mb-3">Colonnes attendues : <code>nom,reference,marque,unite_vente</code>. Le nom de marque doit correspondre exactement à une marque existante (Sensilis, BABÉ, Cumlaude Lab, Good Health, Rilastil).</p>
+            <p class="text-[11px] text-gray-400 mb-3">Colonnes attendues : <code>nom,reference,marque,unite_vente,points_par_unite</code> (les deux dernières sont optionnelles). Le nom de marque doit correspondre exactement à une marque existante (Sensilis, BABÉ, Cumlaude Lab, Good Health, Rilastil).</p>
             <form method="POST" action="/admin/produits/import" enctype="multipart/form-data" class="space-y-3 text-sm">
               <input type="file" name="fichier" accept=".csv" required class="w-full text-xs" />
               <button type="submit" class="w-full bg-nm-accent text-white font-semibold rounded-lg py-2.5 text-sm">Importer</button>

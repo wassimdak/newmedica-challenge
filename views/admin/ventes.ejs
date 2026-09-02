@@ -44,7 +44,8 @@
         <div class="nm-card p-5 h-fit">
           <h2 class="font-bold text-nm-primary mb-2">Import des ventes (CSV)</h2>
           <p class="text-[11px] text-gray-400 mb-3">
-            Colonnes attendues : <code>email,marque,quantite,periode</code> (périodes au format AAAA-MM ; email = identifiant de la préparatrice).
+            Colonnes attendues : <code>email,marque,quantite,periode,reference</code> (les deux dernières optionnelles ; périodes au format AAAA-MM ; email = identifiant de la préparatrice).
+            <code>reference</code> permet de rattacher la vente à un produit précis (et donc à son barème de points s'il en a un) — voir <a href="/admin/produits" class="underline">Produits</a> ; sans elle, le premier produit de la marque est utilisé.
             Simule l'import fichier plat ou connecteur caisse/ERP décrit au cahier des charges.
           </p>
           <form method="POST" action="/admin/ventes/import" enctype="multipart/form-data" class="space-y-3 text-sm">
