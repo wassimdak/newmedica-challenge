@@ -14,4 +14,12 @@ document.addEventListener('click', async (e) => {
     if (res.ok) window.location.reload();
     return;
   }
+
+  const toggleProduit = e.target.closest('.btn-toggle-produit');
+  if (toggleProduit) {
+    const id = toggleProduit.dataset.id;
+    const res = await fetch(`/admin/produits/${id}/toggle`, { method: 'POST' });
+    if (res.ok) window.location.reload();
+    return;
+  }
 });

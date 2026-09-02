@@ -66,6 +66,51 @@ router.post('/pharmacies', requireAdminApi, requireWriteAccess, async (req, res)
   res.redirect('/admin/pharmacies');
 });
 
+// --- Produits ---
+router.get('/produits', requireAdminPage, async (req, res) => {
+  const admin = await loadAdmin(req);
+  const produits = await all(
+    `SELECT p.*, m.nom AS marque_nom FROM produits p JOIN marques m ON m.id = p.marque_id
+     ORDER BY m.nom, p.nom`
+  );
+  const marques = await all('SELECT * FROM marques ORDER BY nom');
+  res.render('admin/produits', { page: 'produits', admin, produits, marques, importees: req.query.importees });
+});
+
+router.post('/produits', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const { nom, reference, marque_id, unite_vente } = req.body;
+  await run('INSERT INTO produits (id, nom, reference, marque_id, unite_vente, actif) VALUES (?, ?, ?, ?, ?, 1)', [
+    uuid(), nom, reference, marque_id, unite_vente || 'unité',
+  ]);
+  res.redirect('/admin/produits');
+});
+
+router.post('/produits/import', requireAdminApi, requireWriteAccess, upload.single('fichier'), async (req, res) => {
+  if (!req.file) return res.redirect('/admin/produits');
+  const rows = parseCsv(req.file.buffer.toString('utf8'));
+  let importees = 0;
+  for (const row of rows) {
+    const marque = await get('SELECT id FROM marques WHERE LOWER(nom) = LOWER(?)', [row.marque || '']);
+    const reference = (row.reference || row.ref || '').trim();
+    if (!marque || !reference) continue;
+    const exists = await get('SELECT id FROM produits WHERE reference = ? AND marque_id = ?', [reference, marque.id]);
+    if (exists) continue;
+    await run('INSERT INTO produits (id, nom, reference, marque_id, unite_vente, actif) VALUES (?, ?, ?, ?, ?, 1)', [
+      uuid(), row.nom || row.designation || reference, reference, marque.id, row.unite_vente || row['unité_vente'] || 'unité',
+    ]);
+    importees++;
+  }
+  res.redirect(`/admin/produits?importees=${importees}`);
+});
+
+router.post('/produits/:id/toggle', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const produit = await get('SELECT actif FROM produits WHERE id = ?', [req.params.id]);
+  if (!produit) return res.status(404).json({ error: 'Introuvable' });
+  const nouveau = produit.actif ? 0 : 1;
+  await run('UPDATE produits SET actif = ? WHERE id = ?', [nouveau, req.params.id]);
+  res.json({ ok: true, actif: !!nouveau });
+});
+
 // --- Préparatrices ---
 router.get('/preparatrices', requireAdminPage, async (req, res) => {
   const admin = await loadAdmin(req);
