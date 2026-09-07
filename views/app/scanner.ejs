@@ -66,6 +66,6 @@
   <div id="toast" class="nm-toast"></div>
   <%- include('../partials/app-nav', { active: 'accueil' }) %>
   <script id="marques-data" type="application/json"><%- JSON.stringify(marques) %></script>
-  <script src="/js/scanner.js"></script>
+  <script src="/js/scanner.js?v=<%= assetVersion %>"></script>
 </body>
 </html>

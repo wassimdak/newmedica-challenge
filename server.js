@@ -15,6 +15,11 @@ const PORT = process.env.PORT || 3300;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+// Casse-cache pour les assets statiques (?v=...) : un CDN devant l'hébergeur (observé sur Render)
+// a servi une version périmée de public/js/admin.js après un déploiement malgré un
+// Cache-Control: max-age=0 côté origine. Un identifiant qui change à chaque redémarrage force
+// une nouvelle clé de cache, donc une vraie récupération, sans devoir gérer ça manuellement.
+app.locals.assetVersion = Date.now();
 // Nécessaire derrière le proxy TLS-terminant de Render pour que req.protocol/req.secure et
 // express-rate-limit (identification par IP) reflètent la vraie connexion du client, pas celle
 // (toujours HTTP, toujours la même IP interne) entre le proxy et ce processus.
