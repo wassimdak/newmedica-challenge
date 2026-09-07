@@ -58,6 +58,45 @@
             <% }) %>
           </div>
         </div>
+
+        <div class="nm-card p-5">
+          <p class="text-sm font-bold text-gray-500 mb-4">Volume de ventes par pharmacie</p>
+          <div class="space-y-3 max-h-80 overflow-y-auto pr-1">
+            <% parPharmacie.forEach(p => { %>
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span><%= p.nom %></span><span class="font-semibold"><%= p.volume %> u.</span>
+                </div>
+                <div class="w-full h-2 bg-nm-bg rounded-full overflow-hidden">
+                  <div class="h-full bg-emerald-400 rounded-full" style="width: <%= Math.round((p.volume / maxVolumePharmacie) * 100) %>%"></div>
+                </div>
+              </div>
+            <% }) %>
+            <% if (parPharmacie.length === 0) { %><p class="text-xs text-gray-400">Aucune pharmacie.</p><% } %>
+          </div>
+        </div>
+
+        <div class="nm-card p-5 overflow-x-auto">
+          <p class="text-sm font-bold text-gray-500 mb-4">Volume de ventes par produit (top 30)</p>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-gray-400 border-b">
+                <th class="py-1.5">Produit</th><th>Marque</th><th class="text-right">Unités</th><th class="text-right">Points générés</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% parProduit.forEach(p => { %>
+                <tr class="border-b last:border-0">
+                  <td class="py-1.5 font-semibold text-nm-primary"><%= p.produit_nom || p.reference %></td>
+                  <td class="text-gray-500"><%= p.marque_nom %></td>
+                  <td class="text-right text-gray-500"><%= p.volume %></td>
+                  <td class="text-right text-nm-accent font-semibold"><%= p.points_generes %></td>
+                </tr>
+              <% }) %>
+              <% if (parProduit.length === 0) { %><tr><td colspan="4" class="text-gray-400 py-4 text-center">Aucune vente sur cette période.</td></tr><% } %>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="nm-card p-5 mt-6">

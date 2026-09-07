@@ -79,7 +79,7 @@
         <div class="space-y-6">
           <div class="nm-card p-5">
             <h2 class="font-bold text-nm-primary mb-3">Ajouter une préparatrice</h2>
-            <form method="POST" action="/admin/preparatrices" class="space-y-3 text-sm">
+            <form method="POST" action="/admin/preparatrices" id="form-nouvelle-preparatrice" class="space-y-3 text-sm">
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="text-xs font-semibold text-gray-500">Prénom</label>
@@ -100,9 +100,25 @@
               </div>
               <div>
                 <label class="text-xs font-semibold text-gray-500">Pharmacie</label>
-                <select name="pharmacie_id" required class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
-                  <% pharmacies.forEach(ph => { %><option value="<%= ph.id %>"><%= ph.nom %></option><% }) %>
-                </select>
+                <input type="text" id="pharmacie-recherche" list="pharmacies-datalist" autocomplete="off" required
+                  placeholder="Tapez pour rechercher…"
+                  class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                <datalist id="pharmacies-datalist">
+                  <% pharmacies.forEach(ph => { %><option data-id="<%= ph.id %>" value="<%= ph.nom %>"></option><% }) %>
+                </datalist>
+                <input type="hidden" name="pharmacie_id" id="pharmacie-id" />
+                <p id="pharmacie-erreur" class="hidden text-[11px] text-red-500 mt-1">Sélectionnez une pharmacie dans la liste (ou créez-la ci-dessous).</p>
+                <button type="button" id="btn-nouvelle-pharmacie" class="text-[11px] text-nm-primary underline mt-1">+ Nouvelle pharmacie</button>
+
+                <div id="nouvelle-pharmacie-form" class="hidden mt-2 p-3 bg-nm-bg rounded-lg space-y-2">
+                  <input type="text" id="np-nom" placeholder="Nom de la pharmacie" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  <select id="np-region" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Région (optionnel)</option>
+                    <% regions.forEach(r => { %><option value="<%= r.id %>"><%= r.nom %></option><% }) %>
+                  </select>
+                  <button type="button" id="btn-creer-pharmacie" class="w-full bg-nm-primary text-white font-semibold rounded-lg py-2 text-xs">Créer et sélectionner</button>
+                  <p id="np-erreur" class="hidden text-[11px] text-red-500"></p>
+                </div>
               </div>
               <div>
                 <label class="text-xs font-semibold text-gray-500">Date d'entrée</label>

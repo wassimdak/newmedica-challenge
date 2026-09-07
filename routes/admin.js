@@ -60,9 +60,15 @@ router.get('/pharmacies', requireAdminPage, async (req, res) => {
 
 router.post('/pharmacies', requireAdminApi, requireWriteAccess, async (req, res) => {
   const { nom, adresse, region_id, groupement } = req.body;
+  const id = uuid();
   await run('INSERT INTO pharmacies (id, nom, adresse, region_id, groupement) VALUES (?, ?, ?, ?, ?)', [
-    uuid(), nom, adresse || null, region_id || null, groupement || null,
+    id, nom, adresse || null, region_id || null, groupement || null,
   ]);
+  // Ajout rapide depuis le formulaire "Ajouter une préparatrice" (JS fetch) : renvoie du JSON au
+  // lieu de rediriger, pour ne pas perdre le reste du formulaire en cours de saisie.
+  if (req.get('X-Requested-With') === 'fetch') {
+    return res.json({ ok: true, id, nom });
+  }
   res.redirect('/admin/pharmacies');
 });
 
@@ -133,6 +139,7 @@ router.get('/preparatrices', requireAdminPage, async (req, res) => {
     params
   );
   const pharmacies = await all('SELECT * FROM pharmacies ORDER BY nom');
+  const regions = await all('SELECT * FROM regions ORDER BY nom');
   const identifiants = req.query.identifiants
     ? req.query.identifiants.split(',').map((s) => {
         const [email, motDePasse] = s.split(':');
@@ -140,7 +147,7 @@ router.get('/preparatrices', requireAdminPage, async (req, res) => {
       })
     : [];
   res.render('admin/preparatrices', {
-    page: 'preparatrices', admin, preparatrices, pharmacies, importees: req.query.importees,
+    page: 'preparatrices', admin, preparatrices, pharmacies, regions, importees: req.query.importees,
     nouveauEmail: req.query.nouveau_email, nouveauMdp: req.query.nouveau_mdp, identifiants,
   });
 });
@@ -338,6 +345,22 @@ router.post('/challenges/:id/toggle', requireAdminApi, requireWriteAccess, async
   res.json({ ok: true, actif: !!nouveau });
 });
 
+router.post('/challenges/:id', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const { nom, type, periode_debut, periode_fin, perimetre, marque_id, objectif_unites, regles_points, recompense_associee, points_bonus } = req.body;
+  const challenge = await get('SELECT id FROM challenges WHERE id = ?', [req.params.id]);
+  if (!challenge) return res.status(404).json({ error: 'Introuvable' });
+  await run(
+    `UPDATE challenges SET nom = ?, type = ?, periode_debut = ?, periode_fin = ?, perimetre = ?, marque_id = ?,
+       objectif_unites = ?, regles_points = ?, recompense_associee = ?, points_bonus = ? WHERE id = ?`,
+    [nom, type, periode_debut, periode_fin, perimetre || 'national',
+      type === 'marque' || type === 'mission' || type === 'defi' ? (marque_id || null) : null,
+      objectif_unites ? parseInt(objectif_unites, 10) : null, regles_points || null, recompense_associee || null,
+      points_bonus ? parseInt(points_bonus, 10) : null, req.params.id]
+  );
+  await recalcParticipations(currentPeriod());
+  res.redirect('/admin/challenges');
+});
+
 // --- Récompenses & échanges ---
 router.get('/recompenses', requireAdminPage, async (req, res) => {
   const admin = await loadAdmin(req);
@@ -438,12 +461,32 @@ router.get('/reporting', requireAdminPage, async (req, res) => {
      GROUP BY r.id ORDER BY volume DESC`,
     [periode]
   );
+  const parPharmacie = await all(
+    `SELECT ph.nom, COALESCE(SUM(v.quantite), 0) AS volume
+     FROM pharmacies ph
+     LEFT JOIN preparatrices p ON p.pharmacie_id = ph.id
+     LEFT JOIN ventes v ON v.preparatrice_id = p.id AND v.periode = ? AND v.statut_validation = 'valide'
+     GROUP BY ph.id ORDER BY volume DESC`,
+    [periode]
+  );
+  const parProduit = await all(
+    `SELECT p.nom AS produit_nom, p.reference, m.nom AS marque_nom, SUM(v.quantite) AS volume,
+            SUM(v.quantite * COALESCE(p.points_par_unite, m.points_par_unite)) AS points_generes
+     FROM ventes v
+     JOIN produits p ON p.id = v.produit_id
+     JOIN marques m ON m.id = v.marque_id
+     WHERE v.periode = ? AND v.statut_validation = 'valide'
+     GROUP BY v.produit_id ORDER BY volume DESC LIMIT 30`,
+    [periode]
+  );
+
   const maxVolumeMarque = Math.max(1, ...parMarque.map((m) => m.volume));
   const maxVolumeRegion = Math.max(1, ...parRegion.map((r) => r.volume));
+  const maxVolumePharmacie = Math.max(1, ...parPharmacie.map((p) => p.volume));
 
   res.render('admin/reporting', {
     page: 'reporting', admin, periode, periodeLabel: periodLabel(periode), kpis,
-    parMarque, parRegion, maxVolumeMarque, maxVolumeRegion,
+    parMarque, parRegion, parPharmacie, parProduit, maxVolumeMarque, maxVolumeRegion, maxVolumePharmacie,
   });
 });
 
