@@ -152,16 +152,44 @@ router.get('/preparatrices', requireAdminPage, async (req, res) => {
   });
 });
 
+async function renderPreparatricesAvecErreur(req, res, erreur) {
+  const admin = await loadAdmin(req);
+  const { clause, params } = regionFilterClause(req);
+  const preparatrices = await all(
+    `SELECT p.*, ph.nom AS pharmacie_nom FROM preparatrices p
+     JOIN pharmacies ph ON ph.id = p.pharmacie_id
+     WHERE 1=1 ${clause} ORDER BY p.nom`,
+    params
+  );
+  const pharmacies = await all('SELECT * FROM pharmacies ORDER BY nom');
+  const regions = await all('SELECT * FROM regions ORDER BY nom');
+  res.render('admin/preparatrices', { page: 'preparatrices', admin, preparatrices, pharmacies, regions, importees: undefined, identifiants: [], erreurCreation: erreur });
+}
+
 router.post('/preparatrices', requireAdminApi, requireWriteAccess, async (req, res) => {
   const { nom, prenom, email, telephone, pharmacie_id, date_entree } = req.body;
+  const emailNormalise = (email || '').trim().toLowerCase();
+
+  if (!nom || !prenom || !emailNormalise) {
+    return renderPreparatricesAvecErreur(req, res, 'Prénom, nom et email sont requis.');
+  }
+  const pharmacie = await get('SELECT id FROM pharmacies WHERE id = ?', [pharmacie_id || '']);
+  if (!pharmacie) {
+    return renderPreparatricesAvecErreur(req, res, "Pharmacie invalide : sélectionnez-en une dans la liste (cliquez sur un résultat de recherche), ou créez-la via « + Nouvelle pharmacie ».");
+  }
+  const emailExiste = await get('SELECT id FROM preparatrices WHERE email = ?', [emailNormalise]);
+  if (emailExiste) {
+    return renderPreparatricesAvecErreur(req, res, `Une préparatrice existe déjà avec l'email ${emailNormalise}.`);
+  }
+
   const motDePasse = generatePassword();
   const passwordHash = await bcrypt.hash(motDePasse, 10);
   await run(
     `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree, doit_changer_mdp)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?, 1)`,
-    [uuid(), nom, prenom, (email || '').toLowerCase(), telephone || null, passwordHash, pharmacie_id, date_entree || null]
+    [uuid(), nom, prenom, emailNormalise, telephone || null, passwordHash, pharmacie.id, date_entree || null]
   );
-  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent((email || '').toLowerCase())}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
+  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent(emailNormalise)}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
 });
 
 router.post('/preparatrices/import', requireAdminApi, requireWriteAccess, upload.single('fichier'), async (req, res) => {

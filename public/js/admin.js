@@ -25,10 +25,14 @@ document.addEventListener('click', async (e) => {
 });
 
 // --- Recherche de pharmacie + création rapide (formulaire "Ajouter une préparatrice") ---
+// Liste cliquable filtrée en JS plutôt qu'un <datalist> natif : le support de datalist est
+// inégal sur les navigateurs mobiles (pas de menu, correspondance approximative selon les
+// appareils), ce qui pouvait laisser le champ caché pharmacie_id vide à l'envoi du formulaire.
 (function () {
   const recherche = document.getElementById('pharmacie-recherche');
   const idField = document.getElementById('pharmacie-id');
-  const datalist = document.getElementById('pharmacies-datalist');
+  const resultatsEl = document.getElementById('pharmacie-resultats');
+  const dataEl = document.getElementById('pharmacies-data');
   const erreur = document.getElementById('pharmacie-erreur');
   const form = document.getElementById('form-nouvelle-preparatrice');
   const btnNouvelle = document.getElementById('btn-nouvelle-pharmacie');
@@ -40,14 +44,50 @@ document.addEventListener('click', async (e) => {
 
   if (!recherche) return; // cette page n'a pas ce formulaire (ex. rôle lecture seule)
 
-  function idPourNom(nom) {
-    const option = Array.from(datalist.options).find((o) => o.value === nom);
-    return option ? option.dataset.id : '';
+  let pharmacies = JSON.parse(dataEl.textContent);
+
+  function normaliser(s) {
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
   }
 
-  recherche.addEventListener('input', () => {
-    idField.value = idPourNom(recherche.value);
+  function afficherResultats(filtre) {
+    const filtreNorm = normaliser(filtre);
+    const correspondances = filtreNorm
+      ? pharmacies.filter((p) => normaliser(p.nom).includes(filtreNorm))
+      : pharmacies;
+
+    if (correspondances.length === 0) {
+      resultatsEl.innerHTML = '<li class="px-3 py-2 text-gray-400">Aucune pharmacie trouvée</li>';
+    } else {
+      resultatsEl.innerHTML = correspondances
+        .slice(0, 30)
+        .map((p) => `<li class="px-3 py-2 hover:bg-nm-bg cursor-pointer" data-id="${p.id}" data-nom="${p.nom.replace(/"/g, '&quot;')}">${p.nom}</li>`)
+        .join('');
+    }
+    resultatsEl.classList.remove('hidden');
+  }
+
+  function selectionner(id, nom) {
+    idField.value = id;
+    recherche.value = nom;
+    resultatsEl.classList.add('hidden');
     erreur.classList.add('hidden');
+  }
+
+  recherche.addEventListener('focus', () => afficherResultats(recherche.value));
+  recherche.addEventListener('input', () => {
+    idField.value = ''; // toute frappe invalide la sélection précédente tant qu'on ne re-clique pas
+    afficherResultats(recherche.value);
+  });
+
+  resultatsEl.addEventListener('mousedown', (e) => {
+    // mousedown (pas click) pour s'exécuter avant le blur du champ de recherche
+    const li = e.target.closest('li[data-id]');
+    if (li) selectionner(li.dataset.id, li.dataset.nom);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!resultatsEl.contains(e.target) && e.target !== recherche) resultatsEl.classList.add('hidden');
   });
 
   form.addEventListener('submit', (e) => {
@@ -81,14 +121,8 @@ document.addEventListener('click', async (e) => {
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Erreur');
 
-      const option = document.createElement('option');
-      option.value = data.nom;
-      option.dataset.id = data.id;
-      datalist.appendChild(option);
-
-      recherche.value = data.nom;
-      idField.value = data.id;
-      erreur.classList.add('hidden');
+      pharmacies.push({ id: data.id, nom: data.nom });
+      selectionner(data.id, data.nom);
       npForm.classList.add('hidden');
       npNom.value = '';
       npRegion.value = '';
