@@ -15,6 +15,10 @@ const PORT = process.env.PORT || 3300;
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+// Nécessaire derrière le proxy TLS-terminant de Render pour que req.protocol/req.secure et
+// express-rate-limit (identification par IP) reflètent la vraie connexion du client, pas celle
+// (toujours HTTP, toujours la même IP interne) entre le proxy et ce processus.
+app.set('trust proxy', 1);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

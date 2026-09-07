@@ -37,6 +37,9 @@
           </div>
         <% } %>
 
+        <% if (c.points_bonus) { %>
+          <p class="text-xs font-semibold text-nm-accent mt-3">🎁 <%= c.points_bonus %> points bonus à la réussite<%= c.participation_statut === 'reussi' ? ' — crédités !' : '' %></p>
+        <% } %>
         <p class="text-xs text-gray-400 mt-3"><%= c.regles_points %></p>
         <div class="flex items-center justify-between mt-3 text-[11px] text-gray-400">
           <span>Du <%= c.periode_debut %> au <%= c.periode_fin %></span>

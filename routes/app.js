@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuid } = require('uuid');
@@ -275,6 +276,36 @@ router.post('/scanner/confirmer', requireAppApi, async (req, res) => {
   }
 
   res.json({ ok: true, ticketId });
+});
+
+// --- Changement de mot de passe (volontaire, ou forcé pour un mot de passe initial jamais changé) ---
+router.get('/changer-mot-de-passe', requireAppPage, async (req, res) => {
+  const preparatrice = await get('SELECT doit_changer_mdp FROM preparatrices WHERE id = ?', [req.preparatriceId]);
+  res.render('app/changer-mot-de-passe', { force: !!preparatrice.doit_changer_mdp, error: null });
+});
+
+router.post('/changer-mot-de-passe', requireAppPage, async (req, res) => {
+  const { mot_de_passe_actuel, nouveau_mot_de_passe, confirmation } = req.body;
+  const preparatrice = await get('SELECT password_hash, doit_changer_mdp FROM preparatrices WHERE id = ?', [req.preparatriceId]);
+  const force = !!preparatrice.doit_changer_mdp;
+
+  function fail(error) {
+    return res.render('app/changer-mot-de-passe', { force, error });
+  }
+
+  if (!(await bcrypt.compare(mot_de_passe_actuel || '', preparatrice.password_hash))) {
+    return fail('Mot de passe actuel incorrect.');
+  }
+  if (!nouveau_mot_de_passe || nouveau_mot_de_passe.length < 8) {
+    return fail('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+  }
+  if (nouveau_mot_de_passe !== confirmation) {
+    return fail('Les deux mots de passe ne correspondent pas.');
+  }
+
+  const passwordHash = await bcrypt.hash(nouveau_mot_de_passe, 10);
+  await run('UPDATE preparatrices SET password_hash = ?, doit_changer_mdp = 0 WHERE id = ?', [passwordHash, req.preparatriceId]);
+  res.redirect('/');
 });
 
 module.exports = router;

@@ -62,7 +62,11 @@
       <% if (notifications.length === 0) { %><p class="text-xs text-gray-400">Aucune notification.</p><% } %>
     </div>
 
-    <form method="POST" action="/logout" class="mt-6 mb-4">
+    <a href="/changer-mot-de-passe" class="block text-center w-full bg-white text-nm-primary font-semibold text-sm py-2.5 rounded-lg border border-gray-200 mt-6">
+      🔒 Changer mon mot de passe
+    </a>
+
+    <form method="POST" action="/logout" class="mt-3 mb-4">
       <button type="submit" class="w-full bg-white text-red-500 font-semibold text-sm py-2.5 rounded-lg border border-red-100">
         Se déconnecter
       </button>

@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
 const { all, get, run } = require('../lib/dbHelpers');
 const { parseCsv } = require('../lib/csv');
-const { requireAdminPage, requireAdminApi, requireWriteAccess } = require('../lib/auth');
+const { requireAdminPage, requireAdminApi, requireWriteAccess, generatePassword } = require('../lib/auth');
 const {
   currentPeriod,
   previousYearPeriod,
@@ -133,25 +133,34 @@ router.get('/preparatrices', requireAdminPage, async (req, res) => {
     params
   );
   const pharmacies = await all('SELECT * FROM pharmacies ORDER BY nom');
-  res.render('admin/preparatrices', { page: 'preparatrices', admin, preparatrices, pharmacies, importees: req.query.importees });
+  const identifiants = req.query.identifiants
+    ? req.query.identifiants.split(',').map((s) => {
+        const [email, motDePasse] = s.split(':');
+        return { email, motDePasse };
+      })
+    : [];
+  res.render('admin/preparatrices', {
+    page: 'preparatrices', admin, preparatrices, pharmacies, importees: req.query.importees,
+    nouveauEmail: req.query.nouveau_email, nouveauMdp: req.query.nouveau_mdp, identifiants,
+  });
 });
 
 router.post('/preparatrices', requireAdminApi, requireWriteAccess, async (req, res) => {
   const { nom, prenom, email, telephone, pharmacie_id, date_entree } = req.body;
-  const passwordHash = await bcrypt.hash('newmedica123', 10);
+  const motDePasse = generatePassword();
+  const passwordHash = await bcrypt.hash(motDePasse, 10);
   await run(
-    `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?)`,
+    `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree, doit_changer_mdp)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?, 1)`,
     [uuid(), nom, prenom, (email || '').toLowerCase(), telephone || null, passwordHash, pharmacie_id, date_entree || null]
   );
-  res.redirect('/admin/preparatrices');
+  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent((email || '').toLowerCase())}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
 });
 
 router.post('/preparatrices/import', requireAdminApi, requireWriteAccess, upload.single('fichier'), async (req, res) => {
   if (!req.file) return res.redirect('/admin/preparatrices');
   const rows = parseCsv(req.file.buffer.toString('utf8'));
-  const passwordHash = await bcrypt.hash('newmedica123', 10);
-  let importees = 0;
+  const identifiants = [];
   for (const row of rows) {
     const email = (row.email || '').toLowerCase().trim();
     if (!email) continue;
@@ -159,14 +168,16 @@ router.post('/preparatrices/import', requireAdminApi, requireWriteAccess, upload
     if (exists) continue;
     const pharmacie = await get('SELECT id FROM pharmacies WHERE LOWER(nom) = LOWER(?)', [row.pharmacie || '']);
     if (!pharmacie) continue;
+    const motDePasse = generatePassword();
+    const passwordHash = await bcrypt.hash(motDePasse, 10);
     await run(
-      `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?)`,
+      `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree, doit_changer_mdp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?, 1)`,
       [uuid(), row.nom || '', row.prenom || '', email, row.telephone || null, passwordHash, pharmacie.id, row.date_entree || null]
     );
-    importees++;
+    identifiants.push(`${email}:${motDePasse}`);
   }
-  res.redirect(`/admin/preparatrices?importees=${importees}`);
+  res.redirect(`/admin/preparatrices?importees=${identifiants.length}&identifiants=${encodeURIComponent(identifiants.join(','))}`);
 });
 
 router.post('/preparatrices/:id/toggle', requireAdminApi, requireWriteAccess, async (req, res) => {
@@ -283,13 +294,14 @@ router.get('/challenges', requireAdminPage, async (req, res) => {
 });
 
 router.post('/challenges', requireAdminApi, requireWriteAccess, async (req, res) => {
-  const { nom, type, periode_debut, periode_fin, perimetre, marque_id, objectif_unites, regles_points, recompense_associee } = req.body;
+  const { nom, type, periode_debut, periode_fin, perimetre, marque_id, objectif_unites, regles_points, recompense_associee, points_bonus } = req.body;
   await run(
-    `INSERT INTO challenges (id, nom, type, periode_debut, periode_fin, perimetre, marque_id, objectif_unites, regles_points, recompense_associee, actif)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+    `INSERT INTO challenges (id, nom, type, periode_debut, periode_fin, perimetre, marque_id, objectif_unites, regles_points, recompense_associee, points_bonus, actif)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     [uuid(), nom, type, periode_debut, periode_fin, perimetre || 'national',
       type === 'marque' || type === 'mission' || type === 'defi' ? (marque_id || null) : null,
-      objectif_unites ? parseInt(objectif_unites, 10) : null, regles_points || null, recompense_associee || null]
+      objectif_unites ? parseInt(objectif_unites, 10) : null, regles_points || null, recompense_associee || null,
+      points_bonus ? parseInt(points_bonus, 10) : null]
   );
   await recalcParticipations(currentPeriod());
   res.redirect('/admin/challenges');

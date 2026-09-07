@@ -1,9 +1,27 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const { get } = require('../lib/dbHelpers');
 const { createSession, destroySession, getSession } = require('../lib/auth');
 
 const router = express.Router();
+
+// Hash factice comparé quand l'email n'existe pas, pour que le temps de réponse ne trahisse pas
+// l'existence d'un compte (bcrypt.compare est sinon court-circuité, donc bien plus rapide, pour
+// un email inconnu que pour un mot de passe incorrect sur un compte réel).
+const DUMMY_HASH = bcrypt.hashSync('mot-de-passe-factice-pour-comparaison-a-temps-constant', 10);
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.',
+});
+
+function cookieOptions(req) {
+  return { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', secure: req.protocol === 'https' };
+}
 
 // --- Préparatrices ---
 router.get('/login', (req, res) => {
@@ -17,17 +35,18 @@ router.get('/login', (req, res) => {
   res.render('app/login', { error: null });
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const preparatrice = await get('SELECT * FROM preparatrices WHERE email = ? AND statut = ?', [
     (email || '').trim().toLowerCase(),
     'actif',
   ]);
-  if (!preparatrice || !(await bcrypt.compare(password || '', preparatrice.password_hash))) {
+  const motDePasseValide = await bcrypt.compare(password || '', preparatrice ? preparatrice.password_hash : DUMMY_HASH);
+  if (!preparatrice || !motDePasseValide) {
     return res.render('app/login', { error: 'Identifiant ou mot de passe incorrect.' });
   }
   const token = createSession(preparatrice.id, 'preparatrice');
-  res.cookie('nm_app', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
+  res.cookie('nm_app', token, cookieOptions(req));
   res.redirect('/');
 });
 
@@ -47,14 +66,15 @@ router.get('/admin/login', (req, res) => {
   res.render('admin/login', { error: null });
 });
 
-router.post('/admin/login', async (req, res) => {
+router.post('/admin/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const user = await get('SELECT * FROM backoffice_users WHERE email = ?', [(email || '').trim().toLowerCase()]);
-  if (!user || !(await bcrypt.compare(password || '', user.password_hash))) {
+  const motDePasseValide = await bcrypt.compare(password || '', user ? user.password_hash : DUMMY_HASH);
+  if (!user || !motDePasseValide) {
     return res.render('admin/login', { error: 'Identifiant ou mot de passe incorrect.' });
   }
   const token = createSession(user.id, user.role, user.region_id);
-  res.cookie('nm_admin', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax' });
+  res.cookie('nm_admin', token, cookieOptions(req));
   res.redirect('/admin/dashboard');
 });
 
