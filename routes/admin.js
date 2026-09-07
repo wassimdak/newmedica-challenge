@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
 const { all, get, run } = require('../lib/dbHelpers');
 const { parseCsv } = require('../lib/csv');
-const { requireAdminPage, requireAdminApi, requireWriteAccess, generatePassword } = require('../lib/auth');
+const { requireAdminPage, requireAdminApi, requireWriteAccess, generatePassword, createSession } = require('../lib/auth');
 const {
   currentPeriod,
   previousYearPeriod,
@@ -186,6 +186,29 @@ router.post('/preparatrices/:id/toggle', requireAdminApi, requireWriteAccess, as
   const nouveauStatut = prep.statut === 'actif' ? 'inactif' : 'actif';
   await run('UPDATE preparatrices SET statut = ? WHERE id = ?', [nouveauStatut, req.params.id]);
   res.json({ ok: true, statut: nouveauStatut });
+});
+
+// Génère un nouveau mot de passe aléatoire pour une préparatrice qui a perdu le sien (il n'est
+// jamais récupérable en clair depuis SEC-1) et la force à en choisir un nouveau à sa prochaine
+// connexion.
+router.post('/preparatrices/:id/reset-mdp', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const prep = await get('SELECT email FROM preparatrices WHERE id = ?', [req.params.id]);
+  if (!prep) return res.status(404).json({ error: 'Introuvable' });
+  const motDePasse = generatePassword();
+  const passwordHash = await bcrypt.hash(motDePasse, 10);
+  await run('UPDATE preparatrices SET password_hash = ?, doit_changer_mdp = 1 WHERE id = ?', [passwordHash, req.params.id]);
+  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent(prep.email)}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
+});
+
+// Ouvre l'app préparatrices comme si l'admin s'était connecté(e) avec ce compte, sans en
+// connaître le mot de passe — pour tester ou dépanner. Ne touche pas à la session admin en
+// cours : /quitter-visualisation permet d'y revenir.
+router.post('/preparatrices/:id/impersonate', requireAdminApi, requireWriteAccess, async (req, res) => {
+  const prep = await get('SELECT id, statut FROM preparatrices WHERE id = ?', [req.params.id]);
+  if (!prep || prep.statut !== 'actif') return res.status(404).json({ error: 'Introuvable ou inactive' });
+  const token = createSession(prep.id, 'preparatrice', null, req.adminUserId);
+  res.cookie('nm_app', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', secure: req.protocol === 'https' });
+  res.redirect('/');
 });
 
 // --- Ventes ---

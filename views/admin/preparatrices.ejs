@@ -50,11 +50,22 @@
                   <td>
                     <span class="badge-pill <%= p.statut === 'actif' ? '' : 'bg-red-50 text-red-500' %>"><%= p.statut %></span>
                   </td>
-                  <td class="text-right">
+                  <td class="text-right whitespace-nowrap">
                     <% if (admin.role !== 'marque_lecture') { %>
                     <button class="btn-toggle-statut text-xs text-nm-primary underline" data-id="<%= p.id %>">
                       <%= p.statut === 'actif' ? 'Désactiver' : 'Activer' %>
                     </button>
+                    <span class="text-gray-300 mx-1">·</span>
+                    <form method="POST" action="/admin/preparatrices/<%= p.id %>/reset-mdp" class="inline"
+                      onsubmit="return confirm('Générer un nouveau mot de passe pour <%= p.prenom %> <%= p.nom %> ? L\'ancien cessera de fonctionner.')">
+                      <button type="submit" class="text-xs text-nm-primary underline">Réinitialiser mdp</button>
+                    </form>
+                    <% if (p.statut === 'actif') { %>
+                    <span class="text-gray-300 mx-1">·</span>
+                    <form method="POST" action="/admin/preparatrices/<%= p.id %>/impersonate" class="inline">
+                      <button type="submit" class="text-xs text-nm-accent underline">Se connecter en tant que</button>
+                    </form>
+                    <% } %>
                     <% } %>
                   </td>
                 </tr>

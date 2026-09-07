@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuid } = require('uuid');
 const { all, get, run } = require('../lib/dbHelpers');
-const { requireAppPage, requireAppApi } = require('../lib/auth');
+const { requireAppPage, requireAppApi, destroySession } = require('../lib/auth');
 const { matchProduits, preprocessImage, reconnaitreTexte } = require('../lib/ocr');
 const {
   currentPeriod,
@@ -278,13 +278,23 @@ router.post('/scanner/confirmer', requireAppApi, async (req, res) => {
   res.json({ ok: true, ticketId });
 });
 
+// Met fin à une session "Se connecter en tant que" ouverte depuis le back-office et ramène
+// l'admin sur son tableau de bord (sa propre session nm_admin n'a jamais été touchée).
+router.post('/quitter-visualisation', requireAppPage, (req, res) => {
+  destroySession(req.cookies.nm_app);
+  res.clearCookie('nm_app');
+  res.redirect('/admin/dashboard');
+});
+
 // --- Changement de mot de passe (volontaire, ou forcé pour un mot de passe initial jamais changé) ---
 router.get('/changer-mot-de-passe', requireAppPage, async (req, res) => {
+  if (req.isImpersonating) return res.redirect('/');
   const preparatrice = await get('SELECT doit_changer_mdp FROM preparatrices WHERE id = ?', [req.preparatriceId]);
   res.render('app/changer-mot-de-passe', { force: !!preparatrice.doit_changer_mdp, error: null });
 });
 
 router.post('/changer-mot-de-passe', requireAppPage, async (req, res) => {
+  if (req.isImpersonating) return res.redirect('/');
   const { mot_de_passe_actuel, nouveau_mot_de_passe, confirmation } = req.body;
   const preparatrice = await get('SELECT password_hash, doit_changer_mdp FROM preparatrices WHERE id = ?', [req.preparatriceId]);
   const force = !!preparatrice.doit_changer_mdp;

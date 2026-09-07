@@ -1,0 +1,8 @@
+<% if (typeof isImpersonating !== 'undefined' && isImpersonating) { %>
+  <div class="bg-amber-400 text-amber-950 text-xs font-semibold px-4 py-2 flex items-center justify-between gap-2 sticky top-0 z-50">
+    <span>👁️ Vous visualisez ce compte depuis le back-office</span>
+    <form method="POST" action="/quitter-visualisation">
+      <button type="submit" class="underline font-bold whitespace-nowrap">Quitter</button>
+    </form>
+  </div>
+<% } %>
