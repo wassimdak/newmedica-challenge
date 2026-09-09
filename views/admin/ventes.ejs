@@ -31,6 +31,10 @@
               <%= toutesPeriodes ? 'Revenir à ' + periodeLabel : 'Voir toutes les périodes confondues' %>
             </a>
           </div>
+          <div class="flex items-center gap-3 mb-3">
+            <a href="/admin/export/ventes-produit?periode=<%= periode %><%= toutesPeriodes ? '&toutes=1' : '' %>" class="text-[11px] font-semibold text-nm-primary underline">⬇ Excel — ventes par produit</a>
+            <a href="/admin/export/ventes-marque?periode=<%= periode %><%= toutesPeriodes ? '&toutes=1' : '' %>" class="text-[11px] font-semibold text-nm-primary underline">⬇ Excel — ventes par marque</a>
+          </div>
 
           <% if (groupeParProduit) { %>
             <p class="text-xs text-gray-400 mb-2"><%= toutesPeriodes ? 'Toutes périodes confondues' : periodeLabel %> — <%= parProduit.length %> produit(s) vendu(s), triés par quantité décroissante</p>

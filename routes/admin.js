@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
+const XLSX = require('xlsx');
 const { v4: uuid } = require('uuid');
 const { all, get, run } = require('../lib/dbHelpers');
 const { parseCsv } = require('../lib/csv');
@@ -28,6 +29,17 @@ function regionFilterClause(req, column = 'ph.region_id') {
     return { clause: ` AND ${column} = ?`, params: [req.adminRegionId] };
   }
   return { clause: '', params: [] };
+}
+
+// Génère un fichier .xlsx à partir de lignes d'objets (une feuille) et l'envoie en téléchargement.
+function sendXlsx(res, filename, sheetName, rows) {
+  const sheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
 }
 
 router.get('/dashboard', requireAdminPage, async (req, res) => {
@@ -150,6 +162,25 @@ router.get('/preparatrices', requireAdminPage, async (req, res) => {
     page: 'preparatrices', admin, preparatrices, pharmacies, regions, importees: req.query.importees,
     nouveauEmail: req.query.nouveau_email, nouveauMdp: req.query.nouveau_mdp, identifiants,
   });
+});
+
+router.get('/export/preparatrices', requireAdminPage, async (req, res) => {
+  const { clause, params } = regionFilterClause(req);
+  const preparatrices = await all(
+    `SELECT p.nom, p.prenom, p.email, p.telephone, ph.nom AS pharmacie, r.nom AS region,
+            p.statut, p.date_entree, p.created_at
+     FROM preparatrices p
+     JOIN pharmacies ph ON ph.id = p.pharmacie_id
+     LEFT JOIN regions r ON r.id = ph.region_id
+     WHERE 1=1 ${clause} ORDER BY p.nom`,
+    params
+  );
+  const rows = preparatrices.map((p) => ({
+    Nom: p.nom, Prénom: p.prenom, Email: p.email, Téléphone: p.telephone || '',
+    Pharmacie: p.pharmacie, Région: p.region || '', Statut: p.statut,
+    "Date d'entrée": p.date_entree || '', 'Créé le': p.created_at,
+  }));
+  sendXlsx(res, `preparatrices-${currentPeriod()}.xlsx`, 'Préparatrices', rows);
 });
 
 async function renderPreparatricesAvecErreur(req, res, erreur) {
@@ -297,6 +328,61 @@ router.get('/ventes', requireAdminPage, async (req, res) => {
     page: 'ventes', admin, ventes, parProduit, periode, periodeLabel: periodLabel(periode),
     importees: req.query.importees, groupeParProduit, toutesPeriodes,
   });
+});
+
+router.get('/export/ventes-produit', requireAdminPage, async (req, res) => {
+  const periode = req.query.periode || currentPeriod();
+  const toutesPeriodes = req.query.toutes === '1';
+  const params = [];
+  let where = "v.statut_validation = 'valide'";
+  if (!toutesPeriodes) {
+    where += ' AND v.periode = ?';
+    params.push(periode);
+  }
+  const parProduit = await all(
+    `SELECT pr.nom AS produit_nom, pr.reference, m.nom AS marque_nom,
+            SUM(v.quantite) AS volume,
+            SUM(v.quantite * COALESCE(pr.points_par_unite, m.points_par_unite)) AS points_generes
+     FROM ventes v
+     JOIN produits pr ON pr.id = v.produit_id
+     JOIN marques m ON m.id = v.marque_id
+     WHERE ${where}
+     GROUP BY v.produit_id ORDER BY volume DESC`,
+    params
+  );
+  const rows = parProduit.map((p) => ({
+    Produit: p.produit_nom || '—', Référence: p.reference, Marque: p.marque_nom,
+    'Quantité totale': p.volume, 'Points générés': p.points_generes,
+  }));
+  const suffixe = toutesPeriodes ? 'toutes-periodes' : periode;
+  sendXlsx(res, `ventes-par-produit-${suffixe}.xlsx`, 'Ventes par produit', rows);
+});
+
+router.get('/export/ventes-marque', requireAdminPage, async (req, res) => {
+  const periode = req.query.periode || currentPeriod();
+  const toutesPeriodes = req.query.toutes === '1';
+  const params = [];
+  let where = "v.statut_validation = 'valide'";
+  if (!toutesPeriodes) {
+    where += ' AND v.periode = ?';
+    params.push(periode);
+  }
+  const parMarque = await all(
+    `SELECT m.nom AS marque_nom,
+            SUM(v.quantite) AS volume,
+            SUM(v.quantite * COALESCE(pr.points_par_unite, m.points_par_unite)) AS points_generes
+     FROM ventes v
+     JOIN marques m ON m.id = v.marque_id
+     LEFT JOIN produits pr ON pr.id = v.produit_id
+     WHERE ${where}
+     GROUP BY v.marque_id ORDER BY volume DESC`,
+    params
+  );
+  const rows = parMarque.map((m) => ({
+    Marque: m.marque_nom, 'Quantité totale': m.volume, 'Points générés': m.points_generes,
+  }));
+  const suffixe = toutesPeriodes ? 'toutes-periodes' : periode;
+  sendXlsx(res, `ventes-par-marque-${suffixe}.xlsx`, 'Ventes par marque', rows);
 });
 
 router.post('/ventes/import', requireAdminApi, requireWriteAccess, upload.single('fichier'), async (req, res) => {

@@ -9,7 +9,10 @@
     <%- include('../partials/admin-sidebar', { page, admin }) %>
 
     <main class="flex-1 p-6 md:p-8 max-w-6xl">
-      <h1 class="text-2xl font-bold text-nm-primary mb-6">Préparatrices</h1>
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-nm-primary">Préparatrices</h1>
+        <a href="/admin/export/preparatrices" class="text-sm font-semibold text-nm-primary underline">⬇ Télécharger en Excel</a>
+      </div>
 
       <% if (typeof erreurCreation !== 'undefined' && erreurCreation) { %>
         <div class="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3 mb-4"><%= erreurCreation %></div>
