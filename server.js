@@ -1,9 +1,10 @@
+require('dotenv').config(); // charge .env en local ; sans effet en production (variables déjà dans l'environnement)
 const express = require('express');
 require('express-async-errors'); // forward rejected promises from async route handlers to Express's error middleware
 const path = require('path');
 const cookieParser = require('cookie-parser');
 
-require('./lib/db'); // creates schema
+const dbReady = require('./lib/db').ready; // résolu une fois le schéma créé (asynchrone avec le client libSQL)
 const { seedIfEmpty, syncAdminCredentials } = require('./lib/seed');
 
 const authRoutes = require('./routes/auth');
@@ -51,7 +52,8 @@ process.on('unhandledRejection', (err) => {
   console.error('Rejet de promesse non géré (processus maintenu en vie) :', err);
 });
 
-seedIfEmpty()
+dbReady
+  .then(() => seedIfEmpty())
   .catch((err) => console.error('Erreur lors de la génération du jeu de données de démonstration :', err))
   .then(() => syncAdminCredentials())
   .catch((err) => console.error('Erreur lors de la synchronisation des identifiants admin :', err))
