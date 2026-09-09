@@ -12,32 +12,70 @@
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-nm-primary">Ventes</h1>
         <form method="GET" class="flex items-center gap-2">
+          <% if (groupeParProduit) { %><input type="hidden" name="vue" value="produit" /><% } %>
+          <% if (toutesPeriodes) { %><input type="hidden" name="toutes" value="1" /><% } %>
           <input type="month" name="periode" value="<%= periode %>" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" onchange="this.form.submit()" />
         </form>
       </div>
 
       <div class="grid lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2 nm-card p-4 overflow-x-auto">
-          <p class="text-xs text-gray-400 mb-2"><%= periodeLabel %> — <%= ventes.length %> ligne(s) récentes</p>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-xs text-gray-400 border-b">
-                <th class="py-2">Préparatrice</th><th>Pharmacie</th><th>Marque</th><th class="text-right">Quantité</th><th>Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% ventes.forEach(v => { %>
-                <tr class="border-b last:border-0">
-                  <td class="py-2.5 font-semibold text-nm-primary"><%= v.prep_prenom %> <%= v.prep_nom %></td>
-                  <td class="text-gray-500"><%= v.pharmacie_nom %></td>
-                  <td class="text-gray-500"><%= v.marque_nom %></td>
-                  <td class="text-right text-gray-500"><%= v.quantite %></td>
-                  <td><span class="badge-pill"><%= v.statut_validation %></span></td>
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <a href="?periode=<%= periode %><%= toutesPeriodes ? '&toutes=1' : '' %>"
+                class="text-xs font-semibold px-3 py-1.5 rounded-full <%= !groupeParProduit ? 'bg-nm-primary text-white' : 'bg-gray-100 text-gray-400' %>">Lignes récentes</a>
+              <a href="?periode=<%= periode %>&vue=produit<%= toutesPeriodes ? '&toutes=1' : '' %>"
+                class="text-xs font-semibold px-3 py-1.5 rounded-full <%= groupeParProduit ? 'bg-nm-primary text-white' : 'bg-gray-100 text-gray-400' %>">Regroupé par produit</a>
+            </div>
+            <a href="?periode=<%= periode %><%= groupeParProduit ? '&vue=produit' : '' %><%= toutesPeriodes ? '' : '&toutes=1' %>" class="text-[11px] text-nm-primary underline">
+              <%= toutesPeriodes ? 'Revenir à ' + periodeLabel : 'Voir toutes les périodes confondues' %>
+            </a>
+          </div>
+
+          <% if (groupeParProduit) { %>
+            <p class="text-xs text-gray-400 mb-2"><%= toutesPeriodes ? 'Toutes périodes confondues' : periodeLabel %> — <%= parProduit.length %> produit(s) vendu(s), triés par quantité décroissante</p>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-gray-400 border-b">
+                  <th class="py-2">Produit</th><th>Référence</th><th>Marque</th><th class="text-right">Quantité totale</th><th class="text-right">Points générés</th>
                 </tr>
-              <% }) %>
-              <% if (ventes.length === 0) { %><tr><td colspan="5" class="text-gray-400 py-4 text-center">Aucune vente pour cette période.</td></tr><% } %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <% parProduit.forEach(p => { %>
+                  <tr class="border-b last:border-0">
+                    <td class="py-2.5 font-semibold text-nm-primary"><%= p.produit_nom || '—' %></td>
+                    <td class="text-gray-500"><%= p.reference %></td>
+                    <td class="text-gray-500"><%= p.marque_nom %></td>
+                    <td class="text-right font-semibold text-nm-accent"><%= p.volume %></td>
+                    <td class="text-right text-gray-500"><%= p.points_generes %></td>
+                  </tr>
+                <% }) %>
+                <% if (parProduit.length === 0) { %><tr><td colspan="5" class="text-gray-400 py-4 text-center">Aucune vente pour cette sélection.</td></tr><% } %>
+              </tbody>
+            </table>
+          <% } else { %>
+            <p class="text-xs text-gray-400 mb-2"><%= toutesPeriodes ? 'Toutes périodes confondues' : periodeLabel %> — <%= ventes.length %> ligne(s) récentes</p>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-gray-400 border-b">
+                  <th class="py-2">Préparatrice</th><th>Pharmacie</th><th>Produit</th><th>Marque</th><th class="text-right">Quantité</th><th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% ventes.forEach(v => { %>
+                  <tr class="border-b last:border-0">
+                    <td class="py-2.5 font-semibold text-nm-primary"><%= v.prep_prenom %> <%= v.prep_nom %></td>
+                    <td class="text-gray-500"><%= v.pharmacie_nom %></td>
+                    <td class="text-gray-500"><%= v.produit_nom || '—' %></td>
+                    <td class="text-gray-500"><%= v.marque_nom %></td>
+                    <td class="text-right text-gray-500"><%= v.quantite %></td>
+                    <td><span class="badge-pill"><%= v.statut_validation %></span></td>
+                  </tr>
+                <% }) %>
+                <% if (ventes.length === 0) { %><tr><td colspan="6" class="text-gray-400 py-4 text-center">Aucune vente pour cette sélection.</td></tr><% } %>
+              </tbody>
+            </table>
+          <% } %>
         </div>
 
         <% if (admin.role !== 'marque_lecture') { %>

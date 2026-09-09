@@ -250,16 +250,53 @@ router.post('/preparatrices/:id/impersonate', requireAdminApi, requireWriteAcces
 router.get('/ventes', requireAdminPage, async (req, res) => {
   const admin = await loadAdmin(req);
   const periode = req.query.periode || currentPeriod();
-  const ventes = await all(
-    `SELECT v.*, p.nom AS prep_nom, p.prenom AS prep_prenom, m.nom AS marque_nom, ph.nom AS pharmacie_nom
-     FROM ventes v
-     JOIN preparatrices p ON p.id = v.preparatrice_id
-     JOIN marques m ON m.id = v.marque_id
-     JOIN pharmacies ph ON ph.id = p.pharmacie_id
-     WHERE v.periode = ? ORDER BY v.created_at DESC LIMIT 100`,
-    [periode]
-  );
-  res.render('admin/ventes', { page: 'ventes', admin, ventes, periode, periodeLabel: periodLabel(periode), importees: req.query.importees });
+  const toutesPeriodes = req.query.toutes === '1';
+  const groupeParProduit = req.query.vue === 'produit';
+
+  let ventes = [];
+  let parProduit = [];
+
+  if (groupeParProduit) {
+    const params = [];
+    let where = "v.statut_validation = 'valide'";
+    if (!toutesPeriodes) {
+      where += ' AND v.periode = ?';
+      params.push(periode);
+    }
+    parProduit = await all(
+      `SELECT pr.nom AS produit_nom, pr.reference, m.nom AS marque_nom,
+              SUM(v.quantite) AS volume,
+              SUM(v.quantite * COALESCE(pr.points_par_unite, m.points_par_unite)) AS points_generes
+       FROM ventes v
+       JOIN produits pr ON pr.id = v.produit_id
+       JOIN marques m ON m.id = v.marque_id
+       WHERE ${where}
+       GROUP BY v.produit_id ORDER BY volume DESC`,
+      params
+    );
+  } else {
+    const params = [];
+    let where = '1=1';
+    if (!toutesPeriodes) {
+      where += ' AND v.periode = ?';
+      params.push(periode);
+    }
+    ventes = await all(
+      `SELECT v.*, p.nom AS prep_nom, p.prenom AS prep_prenom, m.nom AS marque_nom, ph.nom AS pharmacie_nom, pr.nom AS produit_nom
+       FROM ventes v
+       JOIN preparatrices p ON p.id = v.preparatrice_id
+       JOIN marques m ON m.id = v.marque_id
+       JOIN pharmacies ph ON ph.id = p.pharmacie_id
+       LEFT JOIN produits pr ON pr.id = v.produit_id
+       WHERE ${where} ORDER BY v.created_at DESC LIMIT 200`,
+      params
+    );
+  }
+
+  res.render('admin/ventes', {
+    page: 'ventes', admin, ventes, parProduit, periode, periodeLabel: periodLabel(periode),
+    importees: req.query.importees, groupeParProduit, toutesPeriodes,
+  });
 });
 
 router.post('/ventes/import', requireAdminApi, requireWriteAccess, upload.single('fichier'), async (req, res) => {
