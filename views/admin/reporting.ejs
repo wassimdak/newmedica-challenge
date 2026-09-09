@@ -14,9 +14,12 @@
           <h1 class="text-2xl font-bold text-nm-primary">Reporting</h1>
           <p class="text-sm text-gray-400"><%= periodeLabel %></p>
         </div>
-        <form method="GET" class="flex items-center gap-2">
-          <input type="month" name="periode" value="<%= periode %>" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" onchange="this.form.submit()" />
-        </form>
+        <div class="flex items-center gap-3">
+          <a href="/admin/export/reporting?periode=<%= periode %>" class="text-sm font-semibold text-nm-primary underline">⬇ Télécharger en Excel</a>
+          <form method="GET" class="flex items-center gap-2">
+            <input type="month" name="periode" value="<%= periode %>" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm" onchange="this.form.submit()" />
+          </form>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

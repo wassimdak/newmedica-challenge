@@ -31,15 +31,20 @@ function regionFilterClause(req, column = 'ph.region_id') {
   return { clause: '', params: [] };
 }
 
-// Génère un fichier .xlsx à partir de lignes d'objets (une feuille) et l'envoie en téléchargement.
-function sendXlsx(res, filename, sheetName, rows) {
-  const sheet = XLSX.utils.json_to_sheet(rows);
+// Génère un fichier .xlsx à partir d'une ou plusieurs feuilles ([{ nom, rows }]) et l'envoie en téléchargement.
+function sendXlsxSheets(res, filename, sheets) {
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+  for (const { nom, rows } of sheets) {
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), nom);
+  }
   const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(buffer);
+}
+
+function sendXlsx(res, filename, sheetName, rows) {
+  sendXlsxSheets(res, filename, [{ nom: sheetName, rows }]);
 }
 
 router.get('/dashboard', requireAdminPage, async (req, res) => {
@@ -639,6 +644,64 @@ router.get('/reporting', requireAdminPage, async (req, res) => {
     page: 'reporting', admin, periode, periodeLabel: periodLabel(periode), kpis,
     parMarque, parRegion, parPharmacie, parProduit, maxVolumeMarque, maxVolumeRegion, maxVolumePharmacie,
   });
+});
+
+router.get('/export/reporting', requireAdminPage, async (req, res) => {
+  const periode = req.query.periode || currentPeriod();
+  const kpis = await getKPIs(periode);
+
+  const parMarque = await all(
+    `SELECT m.nom, m.points_par_unite, COALESCE(SUM(v.quantite), 0) AS volume
+     FROM marques m LEFT JOIN ventes v ON v.marque_id = m.id AND v.periode = ? AND v.statut_validation = 'valide'
+     GROUP BY m.id ORDER BY volume DESC`,
+    [periode]
+  );
+  const parRegion = await all(
+    `SELECT r.nom, COALESCE(SUM(v.quantite), 0) AS volume
+     FROM regions r
+     LEFT JOIN pharmacies ph ON ph.region_id = r.id
+     LEFT JOIN preparatrices p ON p.pharmacie_id = ph.id
+     LEFT JOIN ventes v ON v.preparatrice_id = p.id AND v.periode = ? AND v.statut_validation = 'valide'
+     GROUP BY r.id ORDER BY volume DESC`,
+    [periode]
+  );
+  const parPharmacie = await all(
+    `SELECT ph.nom, COALESCE(SUM(v.quantite), 0) AS volume
+     FROM pharmacies ph
+     LEFT JOIN preparatrices p ON p.pharmacie_id = ph.id
+     LEFT JOIN ventes v ON v.preparatrice_id = p.id AND v.periode = ? AND v.statut_validation = 'valide'
+     GROUP BY ph.id ORDER BY volume DESC`,
+    [periode]
+  );
+  const parProduit = await all(
+    `SELECT p.nom AS produit_nom, p.reference, m.nom AS marque_nom, SUM(v.quantite) AS volume,
+            SUM(v.quantite * COALESCE(p.points_par_unite, m.points_par_unite)) AS points_generes
+     FROM ventes v
+     JOIN produits p ON p.id = v.produit_id
+     JOIN marques m ON m.id = v.marque_id
+     WHERE v.periode = ? AND v.statut_validation = 'valide'
+     GROUP BY v.produit_id ORDER BY volume DESC`,
+    [periode]
+  );
+
+  sendXlsxSheets(res, `reporting-${periode}.xlsx`, [
+    {
+      nom: 'KPIs',
+      rows: [{
+        Période: periodLabel(periode),
+        "Taux d'engagement (%)": kpis.tauxEngagement,
+        "Taux d'atteinte objectifs (%)": kpis.tauxAtteinte,
+        'Volume de ventes': kpis.volumeVentes,
+        'Volume ventes N-1': kpis.volumeVentesN1,
+        'Croissance vs N-1 (%)': kpis.croissanceVentes,
+        'Points distribués': kpis.pointsDistribues,
+      }],
+    },
+    { nom: 'Par marque', rows: parMarque.map((m) => ({ Marque: m.nom, 'Points/unité': m.points_par_unite, 'Volume vendu': m.volume })) },
+    { nom: 'Par région', rows: parRegion.map((r) => ({ Région: r.nom, 'Volume vendu': r.volume })) },
+    { nom: 'Par pharmacie', rows: parPharmacie.map((p) => ({ Pharmacie: p.nom, 'Volume vendu': p.volume })) },
+    { nom: 'Par produit', rows: parProduit.map((p) => ({ Produit: p.produit_nom || '—', Référence: p.reference, Marque: p.marque_nom, 'Volume vendu': p.volume, 'Points générés': p.points_generes })) },
+  ]);
 });
 
 module.exports = router;
