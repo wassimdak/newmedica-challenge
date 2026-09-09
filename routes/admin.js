@@ -241,7 +241,7 @@ router.post('/preparatrices/:id/reset-mdp', requireAdminApi, requireWriteAccess,
 router.post('/preparatrices/:id/impersonate', requireAdminApi, requireWriteAccess, async (req, res) => {
   const prep = await get('SELECT id, statut FROM preparatrices WHERE id = ?', [req.params.id]);
   if (!prep || prep.statut !== 'actif') return res.status(404).json({ error: 'Introuvable ou inactive' });
-  const token = createSession(prep.id, 'preparatrice', null, req.adminUserId);
+  const { token } = createSession(prep.id, 'preparatrice', null, req.adminUserId);
   res.cookie('nm_app', token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', secure: req.protocol === 'https' });
   res.redirect('/');
 });

@@ -18,17 +18,21 @@
         <div class="bg-red-50 text-red-600 text-sm rounded-lg px-3 py-2 mb-4"><%= error %></div>
       <% } %>
 
-      <form method="POST" action="/login" class="space-y-4">
+      <form method="POST" action="/login" class="space-y-4" autocomplete="on">
         <div>
           <label class="text-xs font-semibold text-gray-500">Email</label>
-          <input type="email" name="email" required placeholder="prenom.nom@newmedica-app.tn"
+          <input type="email" name="email" required placeholder="prenom.nom@newmedica-app.tn" autocomplete="username"
             class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-nm-accent" />
         </div>
         <div>
           <label class="text-xs font-semibold text-gray-500">Mot de passe</label>
-          <input type="password" name="password" required placeholder="••••••••"
+          <input type="password" name="password" required placeholder="••••••••" autocomplete="current-password"
             class="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-nm-accent" />
         </div>
+        <label class="flex items-center gap-2 text-xs text-gray-500">
+          <input type="checkbox" name="remember" value="1" class="rounded border-gray-300 text-nm-accent focus:ring-nm-accent" />
+          Se souvenir de moi (rester connectée 30 jours)
+        </label>
         <button type="submit"
           class="w-full bg-nm-accent text-white font-semibold rounded-lg py-2.5 text-sm hover:opacity-90 transition">
           Se connecter

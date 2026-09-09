@@ -19,8 +19,8 @@ const loginLimiter = rateLimit({
   message: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.',
 });
 
-function cookieOptions(req) {
-  return { httpOnly: true, maxAge: 24 * 60 * 60 * 1000, sameSite: 'lax', secure: req.protocol === 'https' };
+function cookieOptions(req, maxAge) {
+  return { httpOnly: true, maxAge, sameSite: 'lax', secure: req.protocol === 'https' };
 }
 
 // --- Préparatrices ---
@@ -36,7 +36,7 @@ router.get('/login', (req, res) => {
 });
 
 router.post('/login', loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, remember } = req.body;
   const preparatrice = await get('SELECT * FROM preparatrices WHERE email = ? AND statut = ?', [
     (email || '').trim().toLowerCase(),
     'actif',
@@ -45,8 +45,8 @@ router.post('/login', loginLimiter, async (req, res) => {
   if (!preparatrice || !motDePasseValide) {
     return res.render('app/login', { error: 'Identifiant ou mot de passe incorrect.' });
   }
-  const token = createSession(preparatrice.id, 'preparatrice');
-  res.cookie('nm_app', token, cookieOptions(req));
+  const { token, ttl } = createSession(preparatrice.id, 'preparatrice', null, null, !!remember);
+  res.cookie('nm_app', token, cookieOptions(req, ttl));
   res.redirect('/');
 });
 
@@ -67,14 +67,14 @@ router.get('/admin/login', (req, res) => {
 });
 
 router.post('/admin/login', loginLimiter, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, remember } = req.body;
   const user = await get('SELECT * FROM backoffice_users WHERE email = ?', [(email || '').trim().toLowerCase()]);
   const motDePasseValide = await bcrypt.compare(password || '', user ? user.password_hash : DUMMY_HASH);
   if (!user || !motDePasseValide) {
     return res.render('admin/login', { error: 'Identifiant ou mot de passe incorrect.' });
   }
-  const token = createSession(user.id, user.role, user.region_id);
-  res.cookie('nm_admin', token, cookieOptions(req));
+  const { token, ttl } = createSession(user.id, user.role, user.region_id, null, !!remember);
+  res.cookie('nm_admin', token, cookieOptions(req, ttl));
   res.redirect('/admin/dashboard');
 });
 
