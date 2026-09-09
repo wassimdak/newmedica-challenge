@@ -6,6 +6,7 @@ const path = require('path');
 const { v4: uuid } = require('uuid');
 const { all, get, run } = require('../lib/dbHelpers');
 const { requireAppPage, requireAppApi, destroySession } = require('../lib/auth');
+const { notifierEchangeRecompense } = require('../lib/email');
 const { matchProduits, preprocessImage, reconnaitreTexte } = require('../lib/ocr');
 const {
   currentPeriod,
@@ -174,6 +175,21 @@ router.post('/recompenses/:id/echanger', requireAppApi, async (req, res) => {
     uuid(), req.preparatriceId, recompense.id, 'demande',
   ]);
   await run('UPDATE recompenses SET stock = stock - 1 WHERE id = ?', [recompense.id]);
+
+  const preparatrice = await get(
+    `SELECT p.nom, p.prenom, ph.nom AS pharmacie_nom FROM preparatrices p
+     JOIN pharmacies ph ON ph.id = p.pharmacie_id WHERE p.id = ?`,
+    [req.preparatriceId]
+  );
+  // Ne bloque jamais la réponse à la préparatrice si l'email échoue — notifierEchangeRecompense
+  // intercepte déjà ses propres erreurs, mais on isole quand même l'appel par prudence.
+  notifierEchangeRecompense({
+    preparativePrenom: preparatrice.prenom,
+    preparatriceNom: preparatrice.nom,
+    pharmacieNom: preparatrice.pharmacie_nom,
+    recompenseNom: recompense.nom,
+    coutPoints: recompense.cout_points,
+  }).catch((err) => console.error('Notification récompense non envoyée :', err));
 
   res.json({ ok: true, nouveauSolde: solde - recompense.cout_points });
 });
