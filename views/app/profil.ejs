@@ -21,7 +21,7 @@
     <div class="nm-card p-4">
       <p class="text-xs font-bold text-gray-400 uppercase mb-2">Informations</p>
       <div class="text-sm space-y-1.5">
-        <p class="flex justify-between"><span class="text-gray-400">Email</span><span class="text-nm-primary font-medium"><%= preparatrice.email %></span></p>
+        <p class="flex justify-between"><span class="text-gray-400">Email</span><span class="text-nm-primary font-medium"><%= preparatrice.email || '—' %></span></p>
         <p class="flex justify-between"><span class="text-gray-400">Téléphone</span><span class="text-nm-primary font-medium"><%= preparatrice.telephone || '—' %></span></p>
         <p class="flex justify-between"><span class="text-gray-400">Entrée en poste</span><span class="text-nm-primary font-medium"><%= preparatrice.date_entree %></span></p>
       </div>

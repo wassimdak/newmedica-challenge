@@ -181,7 +181,7 @@ router.get('/export/preparatrices', requireAdminPage, async (req, res) => {
     params
   );
   const rows = preparatrices.map((p) => ({
-    Nom: p.nom, Prénom: p.prenom, Email: p.email, Téléphone: p.telephone || '',
+    Nom: p.nom, Prénom: p.prenom, Téléphone: p.telephone, Email: p.email || '',
     Pharmacie: p.pharmacie, Région: p.region || '', Statut: p.statut,
     "Date d'entrée": p.date_entree || '', 'Créé le': p.created_at,
   }));
@@ -204,18 +204,27 @@ async function renderPreparatricesAvecErreur(req, res, erreur) {
 
 router.post('/preparatrices', requireAdminApi, requireWriteAccess, async (req, res) => {
   const { nom, prenom, email, telephone, pharmacie_id, date_entree } = req.body;
-  const emailNormalise = (email || '').trim().toLowerCase();
+  const telephoneNormalise = (telephone || '').trim();
+  // L'email reste un identifiant de connexion possible mais n'est plus obligatoire à la création —
+  // le téléphone (obligatoire) sert d'identifiant de repli pour les préparatrices sans email.
+  const emailNormalise = (email || '').trim().toLowerCase() || null;
 
-  if (!nom || !prenom || !emailNormalise) {
-    return renderPreparatricesAvecErreur(req, res, 'Prénom, nom et email sont requis.');
+  if (!nom || !prenom || !telephoneNormalise) {
+    return renderPreparatricesAvecErreur(req, res, 'Prénom, nom et téléphone sont requis.');
   }
   const pharmacie = await get('SELECT id FROM pharmacies WHERE id = ?', [pharmacie_id || '']);
   if (!pharmacie) {
     return renderPreparatricesAvecErreur(req, res, "Pharmacie invalide : sélectionnez-en une dans la liste (cliquez sur un résultat de recherche), ou créez-la via « + Nouvelle pharmacie ».");
   }
-  const emailExiste = await get('SELECT id FROM preparatrices WHERE email = ?', [emailNormalise]);
-  if (emailExiste) {
-    return renderPreparatricesAvecErreur(req, res, `Une préparatrice existe déjà avec l'email ${emailNormalise}.`);
+  const telephoneExiste = await get('SELECT id FROM preparatrices WHERE telephone = ?', [telephoneNormalise]);
+  if (telephoneExiste) {
+    return renderPreparatricesAvecErreur(req, res, `Une préparatrice existe déjà avec le téléphone ${telephoneNormalise}.`);
+  }
+  if (emailNormalise) {
+    const emailExiste = await get('SELECT id FROM preparatrices WHERE email = ?', [emailNormalise]);
+    if (emailExiste) {
+      return renderPreparatricesAvecErreur(req, res, `Une préparatrice existe déjà avec l'email ${emailNormalise}.`);
+    }
   }
 
   const motDePasse = generatePassword();
@@ -223,9 +232,9 @@ router.post('/preparatrices', requireAdminApi, requireWriteAccess, async (req, r
   await run(
     `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree, doit_changer_mdp)
      VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?, 1)`,
-    [uuid(), nom, prenom, emailNormalise, telephone || null, passwordHash, pharmacie.id, date_entree || null]
+    [uuid(), nom, prenom, emailNormalise, telephoneNormalise, passwordHash, pharmacie.id, date_entree || null]
   );
-  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent(emailNormalise)}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
+  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent(emailNormalise || telephoneNormalise)}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
 });
 
 router.post('/preparatrices/import', requireAdminApi, requireWriteAccess, upload.single('fichier'), async (req, res) => {
@@ -233,10 +242,15 @@ router.post('/preparatrices/import', requireAdminApi, requireWriteAccess, upload
   const rows = parseCsv(req.file.buffer.toString('utf8'));
   const identifiants = [];
   for (const row of rows) {
-    const email = (row.email || '').toLowerCase().trim();
-    if (!email) continue;
-    const exists = await get('SELECT id FROM preparatrices WHERE email = ?', [email]);
-    if (exists) continue;
+    const telephone = (row.telephone || '').trim();
+    if (!telephone) continue;
+    const email = (row.email || '').toLowerCase().trim() || null;
+    const telephoneExiste = await get('SELECT id FROM preparatrices WHERE telephone = ?', [telephone]);
+    if (telephoneExiste) continue;
+    if (email) {
+      const emailExiste = await get('SELECT id FROM preparatrices WHERE email = ?', [email]);
+      if (emailExiste) continue;
+    }
     const pharmacie = await get('SELECT id FROM pharmacies WHERE LOWER(nom) = LOWER(?)', [row.pharmacie || '']);
     if (!pharmacie) continue;
     const motDePasse = generatePassword();
@@ -244,9 +258,9 @@ router.post('/preparatrices/import', requireAdminApi, requireWriteAccess, upload
     await run(
       `INSERT INTO preparatrices (id, nom, prenom, email, telephone, password_hash, pharmacie_id, statut, date_entree, doit_changer_mdp)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'actif', ?, 1)`,
-      [uuid(), row.nom || '', row.prenom || '', email, row.telephone || null, passwordHash, pharmacie.id, row.date_entree || null]
+      [uuid(), row.nom || '', row.prenom || '', email, telephone, passwordHash, pharmacie.id, row.date_entree || null]
     );
-    identifiants.push(`${email}:${motDePasse}`);
+    identifiants.push(`${email || telephone}:${motDePasse}`);
   }
   res.redirect(`/admin/preparatrices?importees=${identifiants.length}&identifiants=${encodeURIComponent(identifiants.join(','))}`);
 });
@@ -263,12 +277,12 @@ router.post('/preparatrices/:id/toggle', requireAdminApi, requireWriteAccess, as
 // jamais récupérable en clair depuis SEC-1) et la force à en choisir un nouveau à sa prochaine
 // connexion.
 router.post('/preparatrices/:id/reset-mdp', requireAdminApi, requireWriteAccess, async (req, res) => {
-  const prep = await get('SELECT email FROM preparatrices WHERE id = ?', [req.params.id]);
+  const prep = await get('SELECT email, telephone FROM preparatrices WHERE id = ?', [req.params.id]);
   if (!prep) return res.status(404).json({ error: 'Introuvable' });
   const motDePasse = generatePassword();
   const passwordHash = await bcrypt.hash(motDePasse, 10);
   await run('UPDATE preparatrices SET password_hash = ?, doit_changer_mdp = 1 WHERE id = ?', [passwordHash, req.params.id]);
-  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent(prep.email)}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
+  res.redirect(`/admin/preparatrices?nouveau_email=${encodeURIComponent(prep.email || prep.telephone)}&nouveau_mdp=${encodeURIComponent(motDePasse)}`);
 });
 
 // Ouvre l'app préparatrices comme si l'admin s'était connecté(e) avec ce compte, sans en
@@ -398,8 +412,11 @@ router.post('/ventes/import', requireAdminApi, requireWriteAccess, upload.single
   let importees = 0;
 
   for (const row of rows) {
-    const email = (row.email || row.preparatrice || '').toLowerCase().trim();
-    const preparatrice = await get('SELECT id FROM preparatrices WHERE email = ?', [email]);
+    const identifiant = (row.email || row.preparatrice || row.telephone || '').trim();
+    const preparatrice = await get(
+      'SELECT id FROM preparatrices WHERE LOWER(email) = LOWER(?) OR telephone = ?',
+      [identifiant, identifiant]
+    );
     if (!preparatrice) continue;
     const marque = await get('SELECT id, points_par_unite FROM marques WHERE LOWER(nom) = LOWER(?)', [row.marque || '']);
     if (!marque) continue;

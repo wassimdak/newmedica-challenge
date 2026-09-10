@@ -36,11 +36,15 @@ router.get('/login', (req, res) => {
 });
 
 router.post('/login', loginLimiter, async (req, res) => {
-  const { email, password, remember } = req.body;
-  const preparatrice = await get('SELECT * FROM preparatrices WHERE email = ? AND statut = ?', [
-    (email || '').trim().toLowerCase(),
-    'actif',
-  ]);
+  const { identifiant, password, remember } = req.body;
+  // Une préparatrice peut se connecter avec son email (optionnel à la création) ou son téléphone
+  // (obligatoire) — on compare la même valeur normalisée aux deux colonnes plutôt que de deviner
+  // laquelle l'utilisatrice a saisie.
+  const valeur = (identifiant || '').trim();
+  const preparatrice = await get(
+    'SELECT * FROM preparatrices WHERE (LOWER(email) = LOWER(?) OR telephone = ?) AND statut = ?',
+    [valeur, valeur, 'actif']
+  );
   const motDePasseValide = await bcrypt.compare(password || '', preparatrice ? preparatrice.password_hash : DUMMY_HASH);
   if (!preparatrice || !motDePasseValide) {
     return res.render('app/login', { error: 'Identifiant ou mot de passe incorrect.' });
